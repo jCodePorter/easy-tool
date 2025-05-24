@@ -4,7 +4,7 @@ package cn.augrain.easy.tool.core;
  * 字符串
  *
  * @author biaoy
- * @since 2025/05/23
+ * @since 2025/05/24
  */
 public class StringUtils {
 
@@ -155,7 +155,7 @@ public class StringUtils {
     /**
      * 重复字符串指定次数
      */
-    public static String repeat(String str, int repeat) {
+    public static String repeat(CharSequence str, int repeat) {
         if (str == null) {
             return null;
         }

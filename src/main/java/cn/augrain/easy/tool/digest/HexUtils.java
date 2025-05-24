@@ -6,7 +6,7 @@ import java.awt.*;
  * 十六进制
  *
  * @author biaoy
- * @since 2025/03/24
+ * @since 2025/05/24
  */
 public class HexUtils {
 
