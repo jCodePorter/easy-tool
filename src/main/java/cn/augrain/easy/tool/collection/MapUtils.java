@@ -39,8 +39,8 @@ public class MapUtils {
     public static Map<String, Object> of(Object... params) {
         AssertUtils.assertTrue(params.length % 2 == 0, "参数个数异常");
 
-        Map<String, Object> map = new HashMap<>();
-        for (int i = 0; i < params.length;) {
+        Map<String, Object> map = new HashMap<>(params.length / 2);
+        for (int i = 0; i < params.length; ) {
             map.put(String.valueOf(params[i]), params[i + 1]);
             i += 2;
         }
