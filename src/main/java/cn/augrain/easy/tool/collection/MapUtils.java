@@ -1,6 +1,5 @@
 package cn.augrain.easy.tool.collection;
 
-
 import cn.augrain.easy.tool.core.AssertUtils;
 
 import java.util.HashMap;

@@ -175,4 +175,69 @@ public class StringUtils {
     public static String toString(Object obj) {
         return obj == null ? null : obj.toString();
     }
+
+    /**
+     * 字符串编码
+     *
+     * @param str 输入待编码的字符串
+     * @return 编码后字符串
+     */
+    public static String escape(String str) {
+        int i;
+        char j;
+        StringBuilder tmp = new StringBuilder();
+        tmp.ensureCapacity(str.length() * 6);
+        for (i = 0; i < str.length(); i++) {
+            j = str.charAt(i);
+            if (Character.isDigit(j) || Character.isLowerCase(j) || Character.isUpperCase(j))
+                tmp.append(j);
+            else if (j < 256) {
+                tmp.append("%");
+                if (j < 16) {
+                    tmp.append("0");
+                }
+                tmp.append(Integer.toString(j, 16));
+            } else {
+                tmp.append("%u");
+                tmp.append(Integer.toString(j, 16));
+            }
+        }
+        return tmp.toString();
+    }
+
+    /**
+     * 字符串解码
+     *
+     * @param str 输入字符串
+     * @return 解码字符串
+     */
+    public static String unescape(String str) {
+        StringBuilder tmp = new StringBuilder();
+        tmp.ensureCapacity(str.length());
+        int lastPos = 0, pos = 0;
+        char ch;
+        while (lastPos < str.length()) {
+            pos = str.indexOf("%", lastPos);
+            if (pos == lastPos) {
+                if (str.charAt(pos + 1) == 'u') {
+                    ch = (char) Integer.parseInt(str.substring(pos + 2, pos + 6), 16);
+                    tmp.append(ch);
+                    lastPos = pos + 6;
+                } else {
+                    ch = (char) Integer.parseInt(str.substring(pos + 1, pos + 3), 16);
+                    tmp.append(ch);
+                    lastPos = pos + 3;
+                }
+            } else {
+                if (pos == -1) {
+                    tmp.append(str.substring(lastPos));
+                    lastPos = str.length();
+                } else {
+                    tmp.append(str, lastPos, pos);
+                    lastPos = pos;
+                }
+            }
+        }
+        return tmp.toString();
+    }
 }
