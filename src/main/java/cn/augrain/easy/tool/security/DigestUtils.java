@@ -14,6 +14,25 @@ import java.security.NoSuchAlgorithmException;
  */
 public class DigestUtils {
 
+    // from java 8
+    public static final String MD2 = "MD2";
+    public static final String MD5 = "MD5";
+    public static final String SHA_1 = "SHA-1";
+    public static final String SHA_224 = "SHA-224";
+    public static final String SHA_256 = "SHA-256";
+    public static final String SHA_384 = "SHA-384";
+    public static final String SHA_512 = "SHA-512";
+
+    // from java 9
+    public static final String SHA3_224 = "SHA3-224";
+    public static final String SHA3_256 = "SHA3-256";
+    public static final String SHA3_384 = "SHA3-384";
+    public static final String SHA3_512 = "SHA3-512";
+
+    // from java 11
+    public static final String SHA_512_224 = "SHA-512/224";
+    public static final String SHA_512_256 = "SHA-512/256";
+
     /**
      * 计算字符串的MD5摘要
      *
@@ -21,7 +40,7 @@ public class DigestUtils {
      * @return MD5摘要的十六进制字符串
      */
     public static String md5(String input) {
-        return digest(input, "MD5");
+        return digest(input, MD5);
     }
 
     /**
@@ -32,7 +51,7 @@ public class DigestUtils {
      * @throws IOException 如果读取文件出错
      */
     public static String md5(File file) throws IOException {
-        return digest(file, "MD5");
+        return digest(file, MD5);
     }
 
     /**
@@ -42,7 +61,7 @@ public class DigestUtils {
      * @return SHA-1摘要的十六进制字符串
      */
     public static String sha1(String input) {
-        return digest(input, "SHA-1");
+        return digest(input, SHA_1);
     }
 
     /**
@@ -53,7 +72,7 @@ public class DigestUtils {
      * @throws IOException 如果读取文件出错
      */
     public static String sha1(File file) throws IOException {
-        return digest(file, "SHA-1");
+        return digest(file, SHA_1);
     }
 
     /**
@@ -63,7 +82,7 @@ public class DigestUtils {
      * @return SHA-256摘要的十六进制字符串
      */
     public static String sha256(String input) {
-        return digest(input, "SHA-256");
+        return digest(input, SHA_256);
     }
 
     /**
@@ -74,7 +93,7 @@ public class DigestUtils {
      * @throws IOException 如果读取文件出错
      */
     public static String sha256(File file) throws IOException {
-        return digest(file, "SHA-256");
+        return digest(file, SHA_256);
     }
 
     /**
