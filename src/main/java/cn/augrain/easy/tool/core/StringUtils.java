@@ -240,4 +240,18 @@ public class StringUtils {
         }
         return tmp.toString();
     }
+
+    /**
+     * 字符串拆分为数组
+     *
+     * @param str   输入字符串
+     * @param regex 正则
+     * @return 数组
+     */
+    public static String[] splitToArray(String str, String regex) {
+        if (isEmpty(str)) {
+            return new String[0];
+        }
+        return str.split(regex);
+    }
 }
