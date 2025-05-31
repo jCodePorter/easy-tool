@@ -16,7 +16,7 @@ public class SignatureUtilsTest {
     @Test
     public void testRsa() {
         // 生成RSA密钥对
-        KeyPair rsaKeyPair = SignatureUtils.generateRsaKeyPair(SignatureUtils.RSA_2048);
+        KeyPair rsaKeyPair = KeyUtils.generateRsaKeyPair(SignatureUtils.RSA_2048);
         PrivateKey rsaPrivateKey = rsaKeyPair.getPrivate();
         PublicKey rsaPublicKey = rsaKeyPair.getPublic();
 
