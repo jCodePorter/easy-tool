@@ -1,6 +1,5 @@
-package cn.augrain.easy.tool.digest;
+package cn.augrain.easy.tool.security;
 
-import cn.augrain.easy.tool.security.DigestUtils;
 import org.junit.Test;
 
 /**
