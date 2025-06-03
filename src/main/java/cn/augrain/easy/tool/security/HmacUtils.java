@@ -1,5 +1,7 @@
 package cn.augrain.easy.tool.security;
 
+import cn.augrain.easy.tool.core.HexUtils;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
