@@ -62,4 +62,9 @@ public class UtilsRuntimeException extends RuntimeException {
         this(500, message, null);
     }
 
+    public UtilsRuntimeException(Throwable cause) {
+        super(cause);
+        this.code = 500;
+        this.data = cause.getMessage();
+    }
 }
