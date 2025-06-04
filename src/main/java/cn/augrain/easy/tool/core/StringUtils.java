@@ -270,8 +270,18 @@ public class StringUtils {
      * @param str 被切分的字符串
      * @return 分割后的数据列表
      */
-    public static List<String> splitList(String str) {
+    public static List<String> splitToString(String str) {
         return splitTo(str, String::valueOf);
+    }
+
+    /**
+     * 切分字符串(分隔符默认逗号)
+     *
+     * @param str 被切分的字符串
+     * @return 分割后的数据列表
+     */
+    public static List<Long> splitToLong(String str) {
+        return splitTo(str, s -> Long.parseLong(s.toString()));
     }
 
     /**
@@ -281,7 +291,7 @@ public class StringUtils {
      * @param separator 分隔符
      * @return 分割后的数据列表
      */
-    public static List<String> splitList(String str, String separator) {
+    public static List<String> splitToString(String str, String separator) {
         return splitTo(str, separator, String::valueOf);
     }
 
