@@ -2,6 +2,8 @@ package cn.augrain.easy.tool.tree;
 
 import cn.augrain.easy.tool.bean.BeanUtils;
 import cn.augrain.easy.tool.bean.ClassUtils;
+import cn.augrain.easy.tool.collection.MapUtils;
+import cn.augrain.easy.tool.collection.SetUtils;
 import cn.augrain.easy.tool.core.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -206,14 +208,35 @@ public class TreeUtils {
     @SuppressWarnings("all")
     public static void print(List<? extends TreeNode> treeNodes, int depth) {
         for (TreeNode treeNode : treeNodes) {
+            String padding = "";
             if (depth > 0) {
-                String left = StringUtils.repeat(" ", depth * 4);
-                log.info(left);
+                padding = StringUtils.repeat(" ", depth * 4);
             }
-            log.info(treeNode.toString());
+            log.info(padding + treeNode.toString());
 
             if (treeNode.getChildren() != null) {
                 print(treeNode.getChildren(), depth + 1);
+            }
+        }
+    }
+
+    public static void printMap(List<Map<String, Object>> treeNodes) {
+        if (treeNodes == null || treeNodes.isEmpty()) {
+            return;
+        }
+        printMap(treeNodes, 0);
+    }
+
+    public static void printMap(List<Map<String, Object>> treeNodes, int depth) {
+        for (Map<String, Object> treeNode : treeNodes) {
+            String padding = "";
+            if (depth > 0) {
+                padding = StringUtils.repeat(" ", depth * 4);
+            }
+            log.info(padding + MapUtils.toString(treeNode, SetUtils.of("children")));
+
+            if (treeNode.get("children") != null) {
+                printMap((List<Map<String, Object>>) treeNode.get("children"), depth + 1);
             }
         }
     }
