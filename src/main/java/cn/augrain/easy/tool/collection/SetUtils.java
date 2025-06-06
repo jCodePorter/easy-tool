@@ -11,6 +11,12 @@ import java.util.stream.Collectors;
  */
 public class SetUtils {
 
+    /**
+     * 通过字符串构建Set集合
+     *
+     * @param arg 输入参数
+     * @return Set
+     */
     public static Set<String> of(String... arg) {
         return Arrays.stream(arg).collect(Collectors.toSet());
     }

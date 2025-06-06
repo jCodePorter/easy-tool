@@ -38,6 +38,16 @@ public class MapUtils {
         return map == null || map.isEmpty();
     }
 
+    /**
+     * 是否不为空
+     *
+     * @param map map
+     * @return true/false
+     */
+    public static boolean isNotEmpty(Map<?, ?> map) {
+        return !isEmpty(map);
+    }
+
     public static Map<String, Object> of(Object... params) {
         AssertUtils.assertTrue(params.length % 2 == 0, "参数个数异常");
 

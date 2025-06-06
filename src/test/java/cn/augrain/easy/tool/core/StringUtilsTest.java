@@ -1,6 +1,5 @@
 package cn.augrain.easy.tool.core;
 
-import cn.augrain.easy.tool.consts.StrConst;
 import org.junit.Assert;
 import org.junit.Test;
 
