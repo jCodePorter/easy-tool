@@ -4,6 +4,8 @@ import cn.augrain.easy.tool.core.AssertUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * MapUtils
@@ -45,5 +47,19 @@ public class MapUtils {
             i += 2;
         }
         return map;
+    }
+
+    /**
+     * toString，可以忽略某个字段
+     *
+     * @param map        输入map
+     * @param ignoreKeys 忽略的key
+     * @return string
+     */
+    public static String toString(Map<String, Object> map, Set<String> ignoreKeys) {
+        return map.entrySet().stream()
+                .filter(entry -> !ignoreKeys.contains(entry.getKey()))
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(Collectors.joining(", ", "{", "}"));
     }
 }
