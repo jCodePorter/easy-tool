@@ -2,10 +2,7 @@ package cn.augrain.easy.tool.core;
 
 import cn.augrain.easy.tool.consts.StrConst;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -322,5 +319,77 @@ public class StringUtils {
                 .filter(Objects::nonNull)
                 .map(mapper)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 去掉首字符串和未字符串
+     *
+     * @param str      字符串
+     * @param startStr 首串
+     * @param endStr   尾串
+     */
+    public static String removeStartEnd(String str, String startStr, String endStr) {
+        return removeEnd(removeStart(str, startStr), endStr);
+    }
+
+    /**
+     * 去掉末尾字符串
+     */
+    public static String removeEnd(String str, String endStr) {
+        if (str == null) {
+            return null;
+        }
+        if (!str.endsWith(endStr)) {
+            return str;
+        }
+        return str.substring(0, str.lastIndexOf(endStr));
+    }
+
+    /**
+     * 去掉首字符串
+     */
+    public static String removeStart(String str, String startStr) {
+        if (str == null) {
+            return null;
+        }
+        if (!str.startsWith(startStr)) {
+            return str;
+        }
+        return str.substring(str.indexOf(startStr) + startStr.length());
+    }
+
+    /**
+     * 字符串左侧，以固定内容填充到指定长度
+     *
+     * @param msg     原始字符串
+     * @param fillStr 填充字符串
+     * @param length  填充的长度
+     * @return 返回填充指定字符串后的结果
+     */
+    public static String leftPad(String msg, String fillStr, int length) {
+        if (msg != null && msg.length() >= length) {
+            return msg;
+        }
+
+        int msgLength = msg == null ? 0 : msg.length();
+        // 填充内容长度
+        int fillLength = length - msgLength;
+        // 循环次数
+        int repeatCount = fillLength / fillStr.length();
+        // 截取长度
+        int splitCount = fillLength % fillStr.length();
+
+        StringBuilder fill = new StringBuilder();
+        for (int i = 0; i < repeatCount; i++) {
+            fill.append(fillStr);
+        }
+        if (splitCount > 0) {
+            fill.append(fillStr, 0, splitCount);
+        }
+        return fill + msg;
+    }
+
+    public static String generateUUID() {
+        return UUID.randomUUID().toString().replaceAll("-", "");
     }
 }
