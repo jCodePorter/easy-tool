@@ -1,4 +1,4 @@
-package cn.augrain.easy.tool.core;
+package cn.augrain.easy.tool.lang;
 
 import org.junit.Assert;
 import org.junit.Test;

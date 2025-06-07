@@ -1,6 +1,6 @@
 package cn.augrain.easy.tool.validate;
 
-import cn.augrain.easy.tool.core.StringUtils;
+import cn.augrain.easy.tool.lang.StringUtils;
 
 /**
  * 手机号工具类

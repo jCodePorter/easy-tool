@@ -1,7 +1,7 @@
 package cn.augrain.easy.tool.bean;
 
 import cn.augrain.easy.tool.collection.MapUtils;
-import cn.augrain.easy.tool.core.ObjectUtils;
+import cn.augrain.easy.tool.lang.ObjectUtils;
 import lombok.extern.slf4j.Slf4j;
 import ma.glasnost.orika.MapperFacade;
 import ma.glasnost.orika.MapperFactory;

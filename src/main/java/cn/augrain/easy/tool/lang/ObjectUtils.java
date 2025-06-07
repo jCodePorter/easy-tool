@@ -1,4 +1,4 @@
-package cn.augrain.easy.tool.core;
+package cn.augrain.easy.tool.lang;
 
 import java.lang.reflect.Array;
 import java.util.Collection;
