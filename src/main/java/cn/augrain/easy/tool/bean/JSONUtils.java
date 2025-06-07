@@ -53,7 +53,7 @@ public class JSONUtils {
      * 如果对象为Null, 返回"null".
      * 如果集合为空集合, 返回"[]".
      */
-    public static String toJson(Object object) {
+    public static String toString(Object object) {
         try {
             return OBJECT_MAPPER.writeValueAsString(object);
         } catch (IOException e) {

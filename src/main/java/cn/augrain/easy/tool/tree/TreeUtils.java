@@ -27,7 +27,7 @@ public class TreeUtils {
     }
 
     @SuppressWarnings("all")
-    public static <T extends TreeNode> List<T> generateTree(List<T> nodes) {
+    public static <T extends TreeNode> List<T> toTree(List<T> nodes) {
         if (nodes.isEmpty()) {
             return nodes;
         }
@@ -48,52 +48,6 @@ public class TreeUtils {
             }
         }
         return result;
-    }
-
-    /**
-     * 将list中对象转换为目标对象，并转化为树结构
-     *
-     * @param source       源数据
-     * @param target       目标Class对象
-     * @param idName       id名称
-     * @param parentName   父节点名称
-     * @param childrenName 子节点名称
-     * @return 转换后的节点树
-     */
-    public static <T> List<T> convertAndToTree(List<?> source, Class<T> target, String idName, String parentName, String childrenName) {
-        List<T> list = new ArrayList<>();
-        try {
-            for (Object o : source) {
-                T t = BeanUtils.map(o, target);
-                list.add(t);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return toTree(list, idName, parentName, childrenName);
-    }
-
-    /**
-     * 将list中对象转换为目标对象，并转化为树结构
-     *
-     * @param source       源数据
-     * @param objConvert   自定义对象转换器
-     * @param idName       id名称
-     * @param parentName   父节点名称
-     * @param childrenName 子节点名称
-     * @return 转换后的节点树
-     */
-    public static <T> List<T> convertAndToTree(List<?> source, Function<Object, T> objConvert, String idName, String parentName, String childrenName) {
-        List<T> list = new ArrayList<>();
-        try {
-            for (Object o : source) {
-                T t = objConvert.apply(o);
-                list.add(t);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return toTree(list, idName, parentName, childrenName);
     }
 
     /**
@@ -122,11 +76,8 @@ public class TreeUtils {
 
             // 获取目标类
             Class<?> clazz = collection.get(0).getClass();
-            // id属性字段
             Field idField = ClassUtils.getField(idName, clazz);
-            // 父id属性字段
             Field parentField = ClassUtils.getField(parentName, clazz);
-            // 子节点属性集合字段
             Field childrenField = ClassUtils.getField(childrenName, clazz);
 
             // 设置为可访问
