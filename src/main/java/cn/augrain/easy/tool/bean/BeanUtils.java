@@ -3,17 +3,15 @@ package cn.augrain.easy.tool.bean;
 import cn.augrain.easy.tool.collection.MapUtils;
 import cn.augrain.easy.tool.lang.ObjectUtils;
 import lombok.extern.slf4j.Slf4j;
-import ma.glasnost.orika.MapperFacade;
-import ma.glasnost.orika.MapperFactory;
-import ma.glasnost.orika.impl.DefaultMapperFactory;
-import ma.glasnost.orika.metadata.Type;
-import ma.glasnost.orika.metadata.TypeFactory;
 
 import java.beans.BeanInfo;
+import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * BeanUtils
@@ -23,16 +21,9 @@ import java.util.*;
  */
 @Slf4j
 public class BeanUtils {
-
-    private static MapperFacade mapper;
-
-    static {
-        MapperFactory mapperFactory = new DefaultMapperFactory
-                .Builder()
-                .mapNulls(false)
-                .build();
-        mapper = mapperFactory.getMapperFacade();
-    }
+    // 缓存BeanInfo信息
+    private static final Map<Class<?>, Map<String, PropertyDescriptor>> BEAN_INFO_CACHE =
+            new ConcurrentHashMap<>();
 
     private BeanUtils() {
 
@@ -44,7 +35,7 @@ public class BeanUtils {
      * @param obj 待转换的bean对象
      * @return map
      */
-    public static Map<String, Object> bean2Map(Object obj) {
+    public static Map<String, Object> toMap(Object obj) {
         if (obj == null) {
             return MapUtils.empty();
         }
@@ -72,115 +63,142 @@ public class BeanUtils {
      * <p>
      * 通过source.getClass() 获得源Class
      */
-    public static <S, D> D map(S source, Class<D> destinationClass) {
-        return mapper.map(source, destinationClass);
-    }
-
-    /**
-     * 简单的复制出新类型对象.
-     * <p>
-     * 通过source.getClass() 获得源Class
-     */
-    public static <S, D> void map(S source, D d) {
-        mapper.map(source, d);
-    }
-
-    /**
-     * 简单的复制出新类型对象.
-     * 指定待复制的class
-     */
-    public static <S, D> void map(S source, D d, Class<S> sClass, Class<D> dClass) {
-        mapper.map(source, d, TypeFactory.valueOf(sClass), TypeFactory.valueOf(dClass));
-    }
-
-    /**
-     * 极致性能的复制出新类型对象.
-     * <p>
-     * 预先通过BeanMapper.getType() 静态获取并缓存Type类型，在此处传入
-     */
-    public static <S, D> D map(S source, Type<S> sourceType, Type<D> destinationType) {
-        return mapper.map(source, sourceType, destinationType);
-    }
-
-    /**
-     * 对象复制
-     */
-    public static <S, T> T map(S source, Class<T> destinationClass, BeanMappingHandler<S, T> handler) {
-        return handler.map(source, destinationClass);
-    }
-
-    /**
-     * 简单的复制出新对象列表到ArrayList
-     * <p>
-     * 不建议使用mapper.mapAsList(Iterable<S>,Class<D>)接口, sourceClass需要反射，实在有点慢
-     */
-    public static <S, D> List<D> mapList(Iterable<S> sourceList, Class<S> sourceClass, Class<D> destinationClass) {
-        return mapper.mapAsList(sourceList, TypeFactory.valueOf(sourceClass), TypeFactory.valueOf(destinationClass));
-    }
-
-    /**
-     * 极致性能的复制出新类型对象到ArrayList.
-     * <p>
-     * 预先通过BeanMapper.getType() 静态获取并缓存Type类型，在此处传入
-     */
-    public static <S, D> List<D> mapList(Iterable<S> sourceList, Type<S> sourceType, Type<D> destinationType) {
-        return mapper.mapAsList(sourceList, sourceType, destinationType);
+    public static <S, D> D copy(S source, Class<D> destinationClass) {
+        try {
+            D target = destinationClass.newInstance();
+            copyProperties(source, target, true);
+            return target;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
      * 简单的复制出新对象列表到ArrayList
      */
-    public static <T> List<T> mapList(List sourceList, Class<T> destinationClass) {
+    public static <T> List<T> copyList(List sourceList, Class<T> destinationClass) {
         if (ObjectUtils.isEmpty(sourceList)) {
             return Collections.emptyList();
         }
         List<T> destinationList = new ArrayList<>();
         for (Object sourceObject : sourceList) {
-            T destinationObject = mapper.map(sourceObject, destinationClass);
+            T destinationObject = copy(sourceObject, destinationClass);
             destinationList.add(destinationObject);
         }
         return destinationList;
     }
 
     /**
-     * 极致性能的复制出新类型对象到ArrayList.
+     * 复制属性
+     *
+     * @param source           源对象
+     * @param target           目标对象
+     * @param ignoreNull       是否忽略null值
+     * @param ignoreProperties 忽略的属性名
      */
-    public static <S, T> List<T> mapList(List<S> sourceList, Class<T> destinationClass, BeanMappingHandler<S, T> handler) {
-        if (ObjectUtils.isEmpty(sourceList)) {
-            return Collections.emptyList();
+    public static void copyProperties(Object source, Object target, Boolean ignoreNull, String... ignoreProperties) {
+        if (source == null || target == null) {
+            return;
         }
-        List<T> destinationList = new ArrayList<>();
-        for (S sourceObject : sourceList) {
-            T destinationObject = handler.map(sourceObject, destinationClass);
-            destinationList.add(destinationObject);
+
+        Set<String> ignoreSet = new HashSet<>(Arrays.asList(ignoreProperties));
+
+        try {
+            Map<String, PropertyDescriptor> sourceDescriptors = getCachedPropertyDescriptors(source.getClass());
+            Map<String, PropertyDescriptor> targetDescriptors = getCachedPropertyDescriptors(target.getClass());
+
+            for (PropertyDescriptor sourcePd : sourceDescriptors.values()) {
+                String propertyName = sourcePd.getName();
+
+                // 检查是否忽略该属性
+                if (ignoreSet.contains(propertyName)) {
+                    continue;
+                }
+
+                PropertyDescriptor targetPd = targetDescriptors.get(propertyName);
+                if (targetPd != null) {
+                    copyProperty(source, target, ignoreNull, sourcePd, targetPd);
+                }
+            }
+        } catch (IntrospectionException e) {
+            throw new RuntimeException("Failed to copy properties", e);
         }
-        return destinationList;
-    }
-
-
-    /**
-     * 简单复制出新对象列表到数组
-     * <p>
-     * 通过source.getComponentType() 获得源Class
-     */
-    public static <S, D> D[] mapArray(final D[] destination, final S[] source, final Class<D> destinationClass) {
-        return mapper.mapAsArray(destination, source, destinationClass);
     }
 
     /**
-     * 极致性能的复制出新类型对象到数组
-     * <p>
-     * 预先通过BeanMapper.getType() 静态获取并缓存Type类型，在此处传入
+     * 复制单个属性
      */
-    public static <S, D> D[] mapArray(D[] destination, S[] source, Type<S> sourceType, Type<D> destinationType) {
-        return mapper.mapAsArray(destination, source, sourceType, destinationType);
+    private static void copyProperty(Object source, Object target, Boolean ignoreNull,
+                                     PropertyDescriptor sourcePd, PropertyDescriptor targetPd) {
+        Method readMethod = sourcePd.getReadMethod();
+        Method writeMethod = targetPd.getWriteMethod();
+
+        if (readMethod != null && writeMethod != null) {
+            try {
+                // 检查类型兼容性
+                if (isCompatibleType(sourcePd.getPropertyType(), targetPd.getPropertyType())) {
+                    Object value = readMethod.invoke(source);
+                    if (ignoreNull && value != null) {
+                        writeMethod.invoke(target, value);
+                    } else {
+                        writeMethod.invoke(target, value);
+                    }
+                }
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                log.error("happen exception ", e);
+            }
+        }
     }
 
     /**
-     * 预先获取orika转换所需要的Type，避免每次转换.
+     * 检查类型兼容性
      */
-    public static <E> Type<E> getType(final Class<E> rawType) {
-        return TypeFactory.valueOf(rawType);
+    private static boolean isCompatibleType(Class<?> sourceType, Class<?> targetType) {
+        // 基本类型与包装类型兼容
+        if (sourceType.isPrimitive()) {
+            sourceType = wrapPrimitiveType(sourceType);
+        }
+        if (targetType.isPrimitive()) {
+            targetType = wrapPrimitiveType(targetType);
+        }
+        return targetType.isAssignableFrom(sourceType);
     }
 
+    /**
+     * 基本类型转包装类型
+     */
+    private static Class<?> wrapPrimitiveType(Class<?> type) {
+        if (type == int.class) return Integer.class;
+        if (type == long.class) return Long.class;
+        if (type == double.class) return Double.class;
+        if (type == float.class) return Float.class;
+        if (type == boolean.class) return Boolean.class;
+        if (type == char.class) return Character.class;
+        if (type == byte.class) return Byte.class;
+        if (type == short.class) return Short.class;
+        return type;
+    }
+
+    /**
+     * 获取缓存的属性描述符
+     */
+    private static Map<String, PropertyDescriptor> getCachedPropertyDescriptors(Class<?> clazz)
+            throws IntrospectionException {
+        return BEAN_INFO_CACHE.computeIfAbsent(clazz, k -> {
+            try {
+                BeanInfo beanInfo = Introspector.getBeanInfo(k);
+                PropertyDescriptor[] pds = beanInfo.getPropertyDescriptors();
+
+                Map<String, PropertyDescriptor> descriptors = new HashMap<>();
+                for (PropertyDescriptor pd : pds) {
+                    if (!"class".equals(pd.getName())) {
+                        descriptors.put(pd.getName(), pd);
+                    }
+                }
+                return descriptors;
+            } catch (IntrospectionException e) {
+                throw new RuntimeException("Failed to introspect class: " + k.getName(), e);
+            }
+        });
+    }
 }

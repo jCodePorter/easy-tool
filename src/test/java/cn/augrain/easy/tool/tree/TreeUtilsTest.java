@@ -1,5 +1,6 @@
 package cn.augrain.easy.tool.tree;
 
+import cn.augrain.easy.tool.bean.BeanUtils;
 import cn.augrain.easy.tool.collection.MapUtils;
 import org.junit.Test;
 
@@ -28,30 +29,19 @@ public class TreeUtilsTest {
     @Test
     public void testTreeObject() {
         List<Menu> menus = buildMenu();
-        List<MenuVO> menuVOS = convertVO(menus);
+        List<MenuVO> menuVOS = BeanUtils.copyList(menus, MenuVO.class);
 
         List<MenuVO> tree = TreeUtils.toTree(menuVOS);
         TreeUtils.print(tree);
     }
 
-
     @Test
     public void testTreeObject2() {
         List<Menu> menus = buildMenu();
-        List<MenuVO> menuVOS = convertVO(menus);
+        List<MenuVO> menuVOS = BeanUtils.copyList(menus, MenuVO.class);
 
         List<MenuVO> tree = TreeUtils.toTree(menuVOS, "id", "pid", "child");
         TreeUtils.print(tree);
-    }
-
-    private static List<MenuVO> convertVO(List<Menu> menus) {
-        return menus.stream().map(m -> {
-            MenuVO menuVO = new MenuVO();
-            menuVO.setId(m.getId());
-            menuVO.setPid(m.getPid());
-            menuVO.setName(m.getName());
-            return menuVO;
-        }).collect(Collectors.toList());
     }
 
     private List<Menu> buildMenu() {
