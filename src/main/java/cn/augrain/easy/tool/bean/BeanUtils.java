@@ -64,19 +64,15 @@ public class BeanUtils {
      * 通过source.getClass() 获得源Class
      */
     public static <S, D> D copy(S source, Class<D> destinationClass) {
-        try {
-            D target = destinationClass.newInstance();
-            copyProperties(source, target, true);
-            return target;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        D target = ClassUtils.newInstance(destinationClass);
+        copyProperties(source, target, true);
+        return target;
     }
 
     /**
      * 简单的复制出新对象列表到ArrayList
      */
-    public static <T> List<T> copyList(List sourceList, Class<T> destinationClass) {
+    public static <T> List<T> copyList(List<?> sourceList, Class<T> destinationClass) {
         if (ObjectUtils.isEmpty(sourceList)) {
             return Collections.emptyList();
         }
