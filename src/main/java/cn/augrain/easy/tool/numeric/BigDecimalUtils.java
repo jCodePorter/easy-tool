@@ -1,7 +1,7 @@
 package cn.augrain.easy.tool.numeric;
 
 
-import cn.augrain.easy.tool.lang.ObjectUtils;
+import cn.augrain.easy.tool.core.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

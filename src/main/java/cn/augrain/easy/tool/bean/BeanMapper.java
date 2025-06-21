@@ -1,6 +1,6 @@
 package cn.augrain.easy.tool.bean;
 
-import cn.augrain.easy.tool.lang.ObjectUtils;
+import cn.augrain.easy.tool.core.ObjectUtils;
 import ma.glasnost.orika.MapperFacade;
 import ma.glasnost.orika.MapperFactory;
 import ma.glasnost.orika.impl.DefaultMapperFactory;

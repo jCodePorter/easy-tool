@@ -1,4 +1,4 @@
-package cn.augrain.easy.tool.lang;
+package cn.augrain.easy.tool.core;
 
 import java.awt.*;
 

@@ -1,7 +1,7 @@
 package cn.augrain.easy.tool.bean;
 
 
-import cn.augrain.easy.tool.lang.StringUtils;
+import cn.augrain.easy.tool.core.StringUtils;
 import cn.augrain.easy.tool.time.LocalDateTimeUtils;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;

@@ -1,7 +1,7 @@
 package cn.augrain.easy.tool.util;
 
 import cn.augrain.easy.tool.exception.UtilsRuntimeException;
-import cn.augrain.easy.tool.lang.StringUtils;
+import cn.augrain.easy.tool.core.StringUtils;
 
 import java.util.Objects;
 
