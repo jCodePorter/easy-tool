@@ -66,7 +66,10 @@ public class MapUtils {
      * @param ignoreKeys 忽略的key
      * @return string
      */
-    public static String toString(Map<String, Object> map, Set<String> ignoreKeys) {
+    public static <K, V> String toString(Map<K, V> map, Set<K> ignoreKeys) {
+        if (CollectionUtils.isEmpty(ignoreKeys)) {
+            return map.toString();
+        }
         return map.entrySet().stream()
                 .filter(entry -> !ignoreKeys.contains(entry.getKey()))
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
