@@ -1,7 +1,7 @@
 package cn.augrain.easy.tool.tree;
 
 import cn.augrain.easy.tool.bean.ClassUtils;
-import cn.augrain.easy.tool.collection.ListUtils;
+import cn.augrain.easy.tool.collection.CollectionUtils;
 import cn.augrain.easy.tool.collection.MapUtils;
 import cn.augrain.easy.tool.collection.SetUtils;
 import cn.augrain.easy.tool.core.StringUtils;
@@ -167,7 +167,7 @@ public class TreeUtils {
 
             if (treeNode.getChildren() != null) {
                 List<? extends TreeNode> children = treeNode.getChildren();
-                if (ListUtils.isNotEmpty(children)) {
+                if (CollectionUtils.isNotEmpty(children)) {
                     print(children, depth + 1);
                 }
             }
@@ -194,7 +194,7 @@ public class TreeUtils {
 
             if (treeNode.get("children") != null) {
                 List<Map<String, Object>> children = (List<Map<String, Object>>) treeNode.get("children");
-                if (ListUtils.isNotEmpty(children)) {
+                if (CollectionUtils.isNotEmpty(children)) {
                     printMap(children, depth + 1);
                 }
             }
