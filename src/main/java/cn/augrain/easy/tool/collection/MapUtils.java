@@ -15,6 +15,8 @@ import java.util.stream.Collectors;
  */
 public class MapUtils {
 
+    private static final Map<String, Object> EMPTY_MAP = new HashMap<>();
+
     private MapUtils() {
 
     }
@@ -25,7 +27,7 @@ public class MapUtils {
      * @return map
      */
     public static Map<String, Object> empty() {
-        return new HashMap<>();
+        return EMPTY_MAP;
     }
 
     /**
