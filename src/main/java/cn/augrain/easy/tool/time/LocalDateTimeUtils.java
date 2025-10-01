@@ -20,6 +20,10 @@ public class LocalDateTimeUtils {
 
     }
 
+    public static String nowStr() {
+        return format(LocalDateTime.now(), NORM_DATETIME_PATTERN);
+    }
+
     /**
      * 获取时间戳（毫秒数）
      *
@@ -91,10 +95,24 @@ public class LocalDateTimeUtils {
         return parse(dateStr, NORM_DATETIME_PATTERN);
     }
 
-    public static LocalDateTime parse(String date, String pattern) {
-        return LocalDateTime.parse(date, DateTimeFormatter.ofPattern(pattern));
+    /**
+     * 解析为LocalDateTime
+     *
+     * @param dateStr 日期字符串
+     * @param pattern 日期格式
+     * @return LocalDateTime
+     */
+    public static LocalDateTime parse(String dateStr, String pattern) {
+        return LocalDateTime.parse(dateStr, DateTimeFormatter.ofPattern(pattern));
     }
 
+    /**
+     * 日期格式化
+     *
+     * @param dateTime 日期
+     * @param pattern  日期格式
+     * @return 格式化后的日期字符串
+     */
     public static String format(LocalDateTime dateTime, String pattern) {
         return DateTimeFormatter.ofPattern(pattern).format(dateTime);
     }

@@ -1,0 +1,273 @@
+package cn.augrain.easy.tool.algorithm.timewheel;
+
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+/**
+ * 自适应时间轮管理器
+ * 动态创建和管理时间轮层级
+ * 读写锁保证线程安全
+ *
+ * @author biaoy
+ * @since 2025/10/01
+ */
+@Slf4j
+public class AdaptiveTimeWheel {
+    private static final int BASE_SLOT_SIZE = 60;
+    private static final int BASE_TICK_MS = 1000;
+    private static final int MAX_LEVELS = 10;
+
+    private DynamicTimeWheel baseWheel;
+    private volatile DynamicTimeWheel topLevelWheel;
+    private final ReentrantReadWriteLock wheelLock;
+
+    private final ScheduledExecutorService scheduler;
+    private final ExecutorService taskExecutor;
+    private final AtomicBoolean running;
+    private final AtomicLong taskCounter;
+
+    public AdaptiveTimeWheel() {
+        this.wheelLock = new ReentrantReadWriteLock();
+        this.baseWheel = new DynamicTimeWheel(BASE_SLOT_SIZE, BASE_TICK_MS, 0);
+        this.topLevelWheel = baseWheel;
+
+        this.scheduler = Executors.newScheduledThreadPool(1, r -> {
+            Thread t = new Thread(r, "AdaptiveTimeWheel-Ticker");
+            t.setDaemon(true);
+            return t;
+        });
+
+        this.taskExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), r -> {
+            Thread t = new Thread(r, "AdaptiveTimeWheel-Task-Executor");
+            t.setDaemon(true);
+            return t;
+        });
+
+        this.running = new AtomicBoolean(true);
+        this.taskCounter = new AtomicLong(0);
+
+        startTicker();
+    }
+
+    private void startTicker() {
+        scheduler.scheduleAtFixedRate(() -> {
+            if (!running.get()) {
+                return;
+            }
+            try {
+                tick();
+            } catch (Exception e) {
+                log.error("Error during time wheel tick: ", e);
+            }
+        }, 0, BASE_TICK_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private void tick() {
+        wheelLock.readLock().lock();
+        try {
+            DynamicTimeWheel current = baseWheel;
+            while (current != null) {
+                current.advance();
+                executeTasksFromWheel(current);
+
+                if (current.getCurrentSlot() == 0 && current.getParent() != null) {
+                    cascadeTasks(current);
+                }
+
+                current = current.getParent();
+            }
+        } finally {
+            wheelLock.readLock().unlock();
+        }
+    }
+
+    private void executeTasksFromWheel(DynamicTimeWheel wheel) {
+        if (wheel.getLevel() == 0) {
+            ConcurrentLinkedQueue<TimeWheelTask> tasks = wheel.getTasksFromCurrentSlot();
+            executeTasks(tasks);
+        }
+    }
+
+    private void cascadeTasks(DynamicTimeWheel wheel) {
+        DynamicTimeWheel parent = wheel.getParent();
+        if (parent != null) {
+            ConcurrentLinkedQueue<TimeWheelTask> parentTasks = parent.getTasksFromCurrentSlot();
+            redistributeTasks(parentTasks);
+        }
+    }
+
+    private void redistributeTasks(ConcurrentLinkedQueue<TimeWheelTask> tasks) {
+        TimeWheelTask task;
+        while ((task = tasks.poll()) != null) {
+            if (!task.isCancelled()) {
+                placeTaskInAppropriateWheel(task);
+            }
+        }
+    }
+
+    private void placeTaskInAppropriateWheel(TimeWheelTask task) {
+        wheelLock.readLock().lock();
+        try {
+            DynamicTimeWheel current = baseWheel;
+            while (current != null) {
+                if (current.canHandleDelay(task.getDelaySeconds())) {
+                    current.addTask(task);
+                    return;
+                }
+                current = current.getParent();
+            }
+        } finally {
+            wheelLock.readLock().unlock();
+        }
+
+        ensureCapacityForTask(task);
+    }
+
+    private void ensureCapacityForTask(TimeWheelTask task) {
+        wheelLock.writeLock().lock();
+        try {
+            DynamicTimeWheel current = topLevelWheel;
+            int taskDelay = task.getDelaySeconds();
+
+            while (!current.canHandleDelay(taskDelay)) {
+                if (current.getLevel() >= MAX_LEVELS - 1) {
+                    throw new IllegalArgumentException("Task delay too large: " + taskDelay + " seconds");
+                }
+
+                DynamicTimeWheel newWheel = createHigherLevelWheel(current);
+                current.setParent(newWheel);
+                newWheel.setChild(current);
+                topLevelWheel = newWheel;
+                current = newWheel;
+            }
+
+            placeTaskInAppropriateWheel(task);
+        } finally {
+            wheelLock.writeLock().unlock();
+        }
+    }
+
+    private DynamicTimeWheel createHigherLevelWheel(DynamicTimeWheel current) {
+        int newLevel = current.getLevel() + 1;
+        int newSlotSize = BASE_SLOT_SIZE;
+        int newTickMs = current.getTickMs() * current.getSlotSize();
+
+        return new DynamicTimeWheel(newSlotSize, newTickMs, newLevel);
+    }
+
+    public String addTask(Runnable task, int delaySeconds) {
+        if (!running.get()) {
+            throw new IllegalStateException("AdaptiveTimeWheel is shutdown");
+        }
+
+        if (delaySeconds <= 0) {
+            throw new IllegalArgumentException("Delay must be positive");
+        }
+
+        String taskId = "task-" + taskCounter.incrementAndGet();
+        TimeWheelTask timeWheelTask = new TimeWheelTask(taskId, task, delaySeconds);
+
+        placeTaskInAppropriateWheel(timeWheelTask);
+        return taskId;
+    }
+
+    private void executeTasks(ConcurrentLinkedQueue<TimeWheelTask> tasks) {
+        TimeWheelTask task;
+        while ((task = tasks.poll()) != null) {
+            if (!task.isCancelled()) {
+                final TimeWheelTask executeTask = task;
+                taskExecutor.submit(() -> {
+                    try {
+                        executeTask.execute();
+                    } catch (Exception e) {
+                        System.err.println("Error executing task " + executeTask.getTaskId() + ": " + e.getMessage());
+                    }
+                });
+            }
+        }
+    }
+
+    public int getTotalPendingTasks() {
+        wheelLock.readLock().lock();
+        try {
+            int total = 0;
+            DynamicTimeWheel current = baseWheel;
+            while (current != null) {
+                total += current.getPendingTaskCount();
+                current = current.getParent();
+            }
+            return total;
+        } finally {
+            wheelLock.readLock().unlock();
+        }
+    }
+
+    public int getWheelLevels() {
+        wheelLock.readLock().lock();
+        try {
+            return topLevelWheel.getLevel() + 1;
+        } finally {
+            wheelLock.readLock().unlock();
+        }
+    }
+
+    public String getWheelHierarchy() {
+        wheelLock.readLock().lock();
+        try {
+            StringBuilder sb = new StringBuilder();
+            DynamicTimeWheel current = baseWheel;
+            while (current != null) {
+                sb.append(String.format("Level %d: %s\n", current.getLevel(), current.toString()));
+                current = current.getParent();
+            }
+            return sb.toString();
+        } finally {
+            wheelLock.readLock().unlock();
+        }
+    }
+
+    public void shutdown() {
+        running.set(false);
+
+        scheduler.shutdown();
+        taskExecutor.shutdown();
+
+        try {
+            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                scheduler.shutdownNow();
+            }
+            if (!taskExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                taskExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            scheduler.shutdownNow();
+            taskExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        wheelLock.writeLock().lock();
+        try {
+            DynamicTimeWheel current = baseWheel;
+            while (current != null) {
+                current.shutdown();
+                current = current.getParent();
+            }
+        } finally {
+            wheelLock.writeLock().unlock();
+        }
+    }
+
+    public boolean isRunning() {
+        return running.get();
+    }
+
+    @Override
+    public String toString() {
+        return String.format("AdaptiveTimeWheel{running=%s, levels=%d, pendingTasks=%d}",
+                running.get(), getWheelLevels(), getTotalPendingTasks());
+    }
+}

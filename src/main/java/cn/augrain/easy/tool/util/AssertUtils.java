@@ -1,9 +1,10 @@
 package cn.augrain.easy.tool.util;
 
-import cn.augrain.easy.tool.exception.UtilsRuntimeException;
 import cn.augrain.easy.tool.core.StringUtils;
+import cn.augrain.easy.tool.exception.UtilsRuntimeException;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * 断言工具类
@@ -27,6 +28,12 @@ public class AssertUtils {
         }
     }
 
+    public static void assertTrue(boolean condition, Supplier<String> supplier) {
+        if (!condition) {
+            throw new UtilsRuntimeException(supplier.get());
+        }
+    }
+
     /**
      * @param condition 条件
      * @param detail    错误详细信息
@@ -44,6 +51,12 @@ public class AssertUtils {
     public static void assertNotNull(Object obj, String detail) {
         if (Objects.isNull(obj)) {
             throw new UtilsRuntimeException(detail);
+        }
+    }
+
+    public static void assertNotNull(Object obj, Supplier<String> supplier) {
+        if (Objects.isNull(obj)) {
+            throw new UtilsRuntimeException(supplier.get());
         }
     }
 
