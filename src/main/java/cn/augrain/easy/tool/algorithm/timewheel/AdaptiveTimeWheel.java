@@ -17,7 +17,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 @Slf4j
 public class AdaptiveTimeWheel {
-    private static final int BASE_SLOT_SIZE = 60;
+    private static final int BASE_SLOT_SIZE = 10;
     private static final int BASE_TICK_MS = 1000;
     private static final int MAX_LEVELS = 10;
 
@@ -35,12 +35,14 @@ public class AdaptiveTimeWheel {
         this.baseWheel = new DynamicTimeWheel(BASE_SLOT_SIZE, BASE_TICK_MS, 0);
         this.topLevelWheel = baseWheel;
 
+        // 调度线程
         this.scheduler = Executors.newScheduledThreadPool(1, r -> {
             Thread t = new Thread(r, "AdaptiveTimeWheel-Ticker");
             t.setDaemon(true);
             return t;
         });
 
+        // 任务执行线程
         this.taskExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), r -> {
             Thread t = new Thread(r, "AdaptiveTimeWheel-Task-Executor");
             t.setDaemon(true);
@@ -63,23 +65,17 @@ public class AdaptiveTimeWheel {
             } catch (Exception e) {
                 log.error("Error during time wheel tick: ", e);
             }
-        }, 0, BASE_TICK_MS, TimeUnit.MILLISECONDS);
+        }, BASE_TICK_MS, BASE_TICK_MS, TimeUnit.MILLISECONDS);
     }
 
     private void tick() {
         wheelLock.readLock().lock();
         try {
             DynamicTimeWheel current = baseWheel;
-            while (current != null) {
-                current.advance();
-                executeTasksFromWheel(current);
 
-                if (current.getCurrentSlot() == 0 && current.getParent() != null) {
-                    cascadeTasks(current);
-                }
-
-                current = current.getParent();
-            }
+            // 驱动时间轮向前推动一秒
+            current.advance();
+            executeTasksFromWheel(current);
         } finally {
             wheelLock.readLock().unlock();
         }
@@ -92,23 +88,11 @@ public class AdaptiveTimeWheel {
         }
     }
 
-    private void cascadeTasks(DynamicTimeWheel wheel) {
-        DynamicTimeWheel parent = wheel.getParent();
-        if (parent != null) {
-            ConcurrentLinkedQueue<TimeWheelTask> parentTasks = parent.getTasksFromCurrentSlot();
-            redistributeTasks(parentTasks);
-        }
-    }
-
-    private void redistributeTasks(ConcurrentLinkedQueue<TimeWheelTask> tasks) {
-        TimeWheelTask task;
-        while ((task = tasks.poll()) != null) {
-            if (!task.isCancelled()) {
-                placeTaskInAppropriateWheel(task);
-            }
-        }
-    }
-
+    /**
+     * 将任务添加到合适的轮子上
+     *
+     * @param task 待调度的任务
+     */
     private void placeTaskInAppropriateWheel(TimeWheelTask task) {
         wheelLock.readLock().lock();
         try {
@@ -184,7 +168,7 @@ public class AdaptiveTimeWheel {
                     try {
                         executeTask.execute();
                     } catch (Exception e) {
-                        System.err.println("Error executing task " + executeTask.getTaskId() + ": " + e.getMessage());
+                        log.error("Error executing task {} , error msg is {}", executeTask.getTaskId(), e.getMessage());
                     }
                 });
             }

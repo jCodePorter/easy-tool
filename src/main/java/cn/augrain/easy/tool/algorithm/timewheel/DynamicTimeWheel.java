@@ -17,18 +17,25 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DynamicTimeWheel {
     @Getter
     private final int slotSize;
+
     @Getter
     private final int tickMs;
+
     @Getter
     private final int level;
+
     private final AtomicInteger currentSlot;
+
     private final ConcurrentLinkedQueue<TimeWheelTask>[] slots;
+
     @Getter
     @Setter
     private DynamicTimeWheel parent;
+
     @Getter
     @Setter
     private DynamicTimeWheel child;
+
     private volatile boolean running;
 
     @SuppressWarnings("unchecked")
@@ -45,25 +52,27 @@ public class DynamicTimeWheel {
         }
     }
 
+    /**
+     * 重新分派任务
+     */
+    public void redistributeTask(TimeWheelTask task, int remainingDelay) {
+        if (!running) {
+            return;
+        }
+        int slotIndex = calculateSlotIndex(remainingDelay);
+        slots[slotIndex].offer(task);
+    }
+
     public void addTask(TimeWheelTask task) {
         if (!running) {
             return;
         }
 
         int delaySeconds = task.getDelaySeconds();
-
-        if (level == 0 && delaySeconds < slotSize) {
-            int slotIndex = calculateSlotIndex(delaySeconds);
-            if (slotIndex >= 0 && slotIndex < slotSize) {
-                slots[slotIndex].offer(task);
-                return;
-            }
-        } else if (level > 0) {
-            int slotIndex = calculateSlotIndex(delaySeconds);
-            if (slotIndex >= 0 && slotIndex < slotSize) {
-                slots[slotIndex].offer(task);
-                return;
-            }
+        int slotIndex = calculateSlotIndex(delaySeconds);
+        if (slotIndex >= 0 && slotIndex < slotSize) {
+            slots[slotIndex].offer(task);
+            return;
         }
 
         if (parent != null) {
@@ -110,13 +119,14 @@ public class DynamicTimeWheel {
     private void cascadeTasksFromParent() {
         if (parent != null) {
             ConcurrentLinkedQueue<TimeWheelTask> parentTasks = parent.getTasksFromCurrentSlot();
-
             for (TimeWheelTask task : parentTasks) {
-                int remainingDelay = calculateRemainingDelay(task);
-                if (remainingDelay < slotSize * tickMs / 1000 || child == null) {
-                    addTask(task);
-                } else {
-                    child.addTask(task);
+                if (!task.isCancelled()) {
+                    int remainingDelay = calculateRemainingDelay(task);
+                    if (remainingDelay < tickMs / 1000 && child != null) {
+                        child.redistributeTask(task, remainingDelay);
+                    } else {
+                        redistributeTask(task, remainingDelay);
+                    }
                 }
             }
         }
@@ -131,10 +141,6 @@ public class DynamicTimeWheel {
     public boolean canHandleDelay(int delaySeconds) {
         int maxDelay = slotSize * tickMs / 1000;
         return delaySeconds < maxDelay;
-    }
-
-    public int getCurrentSlot() {
-        return currentSlot.get();
     }
 
     public int getPendingTaskCount() {
