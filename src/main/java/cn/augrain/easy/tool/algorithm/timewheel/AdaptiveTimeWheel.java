@@ -21,7 +21,7 @@ public class AdaptiveTimeWheel {
     private static final int BASE_TICK_MS = 1000;
     private static final int MAX_LEVELS = 10;
 
-    private DynamicTimeWheel baseWheel;
+    private final DynamicTimeWheel baseWheel;
     private volatile DynamicTimeWheel topLevelWheel;
     private final ReentrantReadWriteLock wheelLock;
 
@@ -194,21 +194,6 @@ public class AdaptiveTimeWheel {
         wheelLock.readLock().lock();
         try {
             return topLevelWheel.getLevel() + 1;
-        } finally {
-            wheelLock.readLock().unlock();
-        }
-    }
-
-    public String getWheelHierarchy() {
-        wheelLock.readLock().lock();
-        try {
-            StringBuilder sb = new StringBuilder();
-            DynamicTimeWheel current = baseWheel;
-            while (current != null) {
-                sb.append(String.format("Level %d: %s\n", current.getLevel(), current.toString()));
-                current = current.getParent();
-            }
-            return sb.toString();
         } finally {
             wheelLock.readLock().unlock();
         }

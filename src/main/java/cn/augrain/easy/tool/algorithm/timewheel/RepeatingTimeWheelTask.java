@@ -1,6 +1,7 @@
 package cn.augrain.easy.tool.algorithm.timewheel;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -13,6 +14,7 @@ import java.util.function.Predicate;
  * @author biaoy
  * @since 2025/10/01
  */
+@Slf4j
 public class RepeatingTimeWheelTask extends TimeWheelTask {
     @Getter
     private final int intervalSeconds;
@@ -25,7 +27,6 @@ public class RepeatingTimeWheelTask extends TimeWheelTask {
     private final AtomicBoolean shouldStop;
     private final AtomicBoolean completed;
 
-    private volatile long nextExecutionTimeMs;
     private volatile boolean isRepeating;
 
     public RepeatingTimeWheelTask(String taskId, Runnable task, int intervalSeconds) {
@@ -56,7 +57,6 @@ public class RepeatingTimeWheelTask extends TimeWheelTask {
         this.completed = new AtomicBoolean(false);
 
         this.isRepeating = true;
-        this.nextExecutionTimeMs = System.currentTimeMillis() + intervalSeconds * 1000L;
     }
 
     @Override
@@ -71,14 +71,10 @@ public class RepeatingTimeWheelTask extends TimeWheelTask {
         } finally {
             long executionTime = System.currentTimeMillis() - startTime;
             totalExecutionTimeMs.addAndGet(executionTime);
-
             int currentCount = executionCount.incrementAndGet();
-
             if (shouldStopAfterExecution(currentCount)) {
                 completed.set(true);
                 isRepeating = false;
-            } else {
-                scheduleNextExecution();
             }
         }
     }
@@ -96,16 +92,11 @@ public class RepeatingTimeWheelTask extends TimeWheelTask {
             try {
                 return stopCondition.test(this);
             } catch (Exception e) {
-                System.err.println("Error in stop condition for task " + getTaskId() + ": " + e.getMessage());
+                log.error("Error in stop condition for task {}: {}", getTaskId(), e.getMessage());
                 return true;
             }
         }
-
         return false;
-    }
-
-    private void scheduleNextExecution() {
-        nextExecutionTimeMs = System.currentTimeMillis() + intervalSeconds * 1000L;
     }
 
     public void stop() {
@@ -134,18 +125,6 @@ public class RepeatingTimeWheelTask extends TimeWheelTask {
         return count > 0 ? (double) totalExecutionTimeMs.get() / count : 0.0;
     }
 
-    public long getNextExecutionTimeMs() {
-        return nextExecutionTimeMs;
-    }
-
-    public long getTimeToNextExecutionMs() {
-        return Math.max(0, nextExecutionTimeMs - System.currentTimeMillis());
-    }
-
-    public boolean hasStopCondition() {
-        return stopCondition != null;
-    }
-
     @Override
     public String toString() {
         return String.format("RepeatingTimeWheelTask{id='%s', interval=%ds, executions=%d/%d, " +
@@ -153,7 +132,7 @@ public class RepeatingTimeWheelTask extends TimeWheelTask {
                 getTaskId(), intervalSeconds, executionCount.get(),
                 maxExecutions > 0 ? maxExecutions : Integer.MAX_VALUE,
                 getAverageExecutionTimeMs(),
-                getTimeToNextExecutionMs() / 1000,
+                getTotalExecutionTimeMs(),
                 isRepeating(), isCompleted());
     }
 }

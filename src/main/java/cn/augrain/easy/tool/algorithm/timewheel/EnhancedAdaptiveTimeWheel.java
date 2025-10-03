@@ -31,6 +31,39 @@ public class EnhancedAdaptiveTimeWheel extends AdaptiveTimeWheel {
         startRepeatingTaskMonitor();
     }
 
+    public String addRepeatingTask(Runnable task, int intervalSeconds) {
+        return addRepeatingTask(task, intervalSeconds, -1, null);
+    }
+
+    public String addRepeatingTask(Runnable task, int intervalSeconds, int maxExecutions) {
+        return addRepeatingTask(task, intervalSeconds, maxExecutions, null);
+    }
+
+    public String addRepeatingTask(Runnable task, int intervalSeconds,
+                                   Predicate<RepeatingTimeWheelTask> stopCondition) {
+        return addRepeatingTask(task, intervalSeconds, -1, stopCondition);
+    }
+
+    public String addRepeatingTask(Runnable task, int intervalSeconds, int maxExecutions,
+                                   Predicate<RepeatingTimeWheelTask> stopCondition) {
+        if (!isRunning()) {
+            throw new IllegalStateException("EnhancedAdaptiveTimeWheel is shutdown");
+        }
+
+        if (intervalSeconds <= 0) {
+            throw new IllegalArgumentException("Interval must be positive");
+        }
+
+        String taskId = "repeating-" + repeatingTaskCounter.incrementAndGet();
+        RepeatingTimeWheelTask repeatingTask = new RepeatingTimeWheelTask(
+                taskId, task, intervalSeconds, maxExecutions, stopCondition);
+
+        repeatingTasks.put(taskId, repeatingTask);
+        scheduleRepeatingTaskExecution(repeatingTask);
+
+        return taskId;
+    }
+
     private void startRepeatingTaskMonitor() {
         repeatingTaskMonitor.scheduleAtFixedRate(() -> {
             try {
@@ -88,39 +121,6 @@ public class EnhancedAdaptiveTimeWheel extends AdaptiveTimeWheel {
         }
     }
 
-    public String addRepeatingTask(Runnable task, int intervalSeconds) {
-        return addRepeatingTask(task, intervalSeconds, -1, null);
-    }
-
-    public String addRepeatingTask(Runnable task, int intervalSeconds, int maxExecutions) {
-        return addRepeatingTask(task, intervalSeconds, maxExecutions, null);
-    }
-
-    public String addRepeatingTask(Runnable task, int intervalSeconds,
-                                   Predicate<RepeatingTimeWheelTask> stopCondition) {
-        return addRepeatingTask(task, intervalSeconds, -1, stopCondition);
-    }
-
-    public String addRepeatingTask(Runnable task, int intervalSeconds, int maxExecutions,
-                                   Predicate<RepeatingTimeWheelTask> stopCondition) {
-        if (!isRunning()) {
-            throw new IllegalStateException("EnhancedAdaptiveTimeWheel is shutdown");
-        }
-
-        if (intervalSeconds <= 0) {
-            throw new IllegalArgumentException("Interval must be positive");
-        }
-
-        String taskId = "repeating-" + repeatingTaskCounter.incrementAndGet();
-        RepeatingTimeWheelTask repeatingTask = new RepeatingTimeWheelTask(
-                taskId, task, intervalSeconds, maxExecutions, stopCondition);
-
-        repeatingTasks.put(taskId, repeatingTask);
-        scheduleRepeatingTaskExecution(repeatingTask);
-
-        return taskId;
-    }
-
     public boolean stopRepeatingTask(String taskId) {
         RepeatingTimeWheelTask task = repeatingTasks.get(taskId);
         if (task != null) {
@@ -128,20 +128,6 @@ public class EnhancedAdaptiveTimeWheel extends AdaptiveTimeWheel {
             return true;
         }
         return false;
-    }
-
-    public boolean cancelRepeatingTask(String taskId) {
-        RepeatingTimeWheelTask task = repeatingTasks.remove(taskId);
-        if (task != null) {
-            task.stop();
-            task.cancel();
-            return true;
-        }
-        return false;
-    }
-
-    public RepeatingTimeWheelTask getRepeatingTask(String taskId) {
-        return repeatingTasks.get(taskId);
     }
 
     public int getRepeatingTaskCount() {
@@ -158,27 +144,6 @@ public class EnhancedAdaptiveTimeWheel extends AdaptiveTimeWheel {
         return (int) repeatingTasks.values().stream()
                 .filter(RepeatingTimeWheelTask::isCompleted)
                 .count();
-    }
-
-    public String getRepeatingTasksSummary() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== Repeating Tasks Summary ===\n");
-        sb.append("Total repeating tasks: ").append(repeatingTasks.size()).append("\n");
-        sb.append("Active tasks: ").append(getActiveRepeatingTaskCount()).append("\n");
-        sb.append("Completed tasks: ").append(getCompletedRepeatingTaskCount()).append("\n\n");
-
-        repeatingTasks.values().forEach(task -> {
-            String status = task.isRepeating() ? "ACTIVE" :
-                    task.isCompleted() ? "COMPLETED" : "STOPPED";
-            sb.append(String.format("Task %s [%s]: %s\n",
-                    task.getTaskId(), status, task.toString()));
-        });
-
-        return sb.toString();
-    }
-
-    public void printDetailedRepeatingTaskStatus() {
-        System.out.println(getRepeatingTasksSummary());
     }
 
     @Override
