@@ -7,14 +7,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 动态时间轮实现，支持任意层级
+ * 时间轮实现，支持任意层级
  * 父子关系管理，形成时间轮链
  * 智能任务分配和级联
  *
  * @author biaoy
  * @since 2025/10/01
  */
-public class DynamicTimeWheel {
+public class TimeWheel {
     @Getter
     private final int slotSize;
 
@@ -30,16 +30,16 @@ public class DynamicTimeWheel {
 
     @Getter
     @Setter
-    private DynamicTimeWheel parent;
+    private TimeWheel parent;
 
     @Getter
     @Setter
-    private DynamicTimeWheel child;
+    private TimeWheel child;
 
     private volatile boolean running;
 
     @SuppressWarnings("unchecked")
-    public DynamicTimeWheel(int slotSize, int tickMs, int level) {
+    public TimeWheel(int slotSize, int tickMs, int level) {
         this.slotSize = slotSize;
         this.tickMs = tickMs;
         this.level = level;

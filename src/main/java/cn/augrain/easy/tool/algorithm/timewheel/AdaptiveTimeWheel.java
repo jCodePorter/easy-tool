@@ -21,8 +21,8 @@ public class AdaptiveTimeWheel {
     private static final int BASE_TICK_MS = 1000;
     private static final int MAX_LEVELS = 10;
 
-    private final DynamicTimeWheel baseWheel;
-    private volatile DynamicTimeWheel topLevelWheel;
+    private final TimeWheel baseWheel;
+    private volatile TimeWheel topLevelWheel;
     private final ReentrantReadWriteLock wheelLock;
 
     private final ScheduledExecutorService scheduler;
@@ -32,7 +32,7 @@ public class AdaptiveTimeWheel {
 
     public AdaptiveTimeWheel() {
         this.wheelLock = new ReentrantReadWriteLock();
-        this.baseWheel = new DynamicTimeWheel(BASE_SLOT_SIZE, BASE_TICK_MS, 0);
+        this.baseWheel = new TimeWheel(BASE_SLOT_SIZE, BASE_TICK_MS, 0);
         this.topLevelWheel = baseWheel;
 
         // 调度线程
@@ -71,7 +71,7 @@ public class AdaptiveTimeWheel {
     private void tick() {
         wheelLock.readLock().lock();
         try {
-            DynamicTimeWheel current = baseWheel;
+            TimeWheel current = baseWheel;
 
             // 驱动时间轮向前推动一秒
             current.advance();
@@ -81,7 +81,7 @@ public class AdaptiveTimeWheel {
         }
     }
 
-    private void executeTasksFromWheel(DynamicTimeWheel wheel) {
+    private void executeTasksFromWheel(TimeWheel wheel) {
         if (wheel.getLevel() == 0) {
             ConcurrentLinkedQueue<TimeWheelTask> tasks = wheel.getTasksFromCurrentSlot();
             executeTasks(tasks);
@@ -96,7 +96,7 @@ public class AdaptiveTimeWheel {
     private void placeTaskInAppropriateWheel(TimeWheelTask task) {
         wheelLock.readLock().lock();
         try {
-            DynamicTimeWheel current = baseWheel;
+            TimeWheel current = baseWheel;
             while (current != null) {
                 if (current.canHandleDelay(task.getDelaySeconds())) {
                     current.addTask(task);
@@ -114,7 +114,7 @@ public class AdaptiveTimeWheel {
     private void ensureCapacityForTask(TimeWheelTask task) {
         wheelLock.writeLock().lock();
         try {
-            DynamicTimeWheel current = topLevelWheel;
+            TimeWheel current = topLevelWheel;
             int taskDelay = task.getDelaySeconds();
 
             while (!current.canHandleDelay(taskDelay)) {
@@ -122,7 +122,7 @@ public class AdaptiveTimeWheel {
                     throw new IllegalArgumentException("Task delay too large: " + taskDelay + " seconds");
                 }
 
-                DynamicTimeWheel newWheel = createHigherLevelWheel(current);
+                TimeWheel newWheel = createHigherLevelWheel(current);
                 current.setParent(newWheel);
                 newWheel.setChild(current);
                 topLevelWheel = newWheel;
@@ -135,12 +135,12 @@ public class AdaptiveTimeWheel {
         }
     }
 
-    private DynamicTimeWheel createHigherLevelWheel(DynamicTimeWheel current) {
+    private TimeWheel createHigherLevelWheel(TimeWheel current) {
         int newLevel = current.getLevel() + 1;
         int newSlotSize = BASE_SLOT_SIZE;
         int newTickMs = current.getTickMs() * current.getSlotSize();
 
-        return new DynamicTimeWheel(newSlotSize, newTickMs, newLevel);
+        return new TimeWheel(newSlotSize, newTickMs, newLevel);
     }
 
     public String addTask(Runnable task, int delaySeconds) {
@@ -179,7 +179,7 @@ public class AdaptiveTimeWheel {
         wheelLock.readLock().lock();
         try {
             int total = 0;
-            DynamicTimeWheel current = baseWheel;
+            TimeWheel current = baseWheel;
             while (current != null) {
                 total += current.getPendingTaskCount();
                 current = current.getParent();
@@ -220,7 +220,7 @@ public class AdaptiveTimeWheel {
 
         wheelLock.writeLock().lock();
         try {
-            DynamicTimeWheel current = baseWheel;
+            TimeWheel current = baseWheel;
             while (current != null) {
                 current.shutdown();
                 current = current.getParent();

@@ -1,5 +1,7 @@
 package cn.augrain.easy.tool.algorithm.timewheel;
 
+import lombok.Getter;
+
 /**
  * 基础任务类
  *
@@ -7,10 +9,18 @@ package cn.augrain.easy.tool.algorithm.timewheel;
  * @since 2025/10/01
  */
 public class TimeWheelTask implements Comparable<TimeWheelTask> {
-    private final String taskId;
     private final Runnable task;
+
+    @Getter
+    private final String taskId;
+
+    @Getter
     private final long executeTimeMs;
+
+    @Getter
     private final int delaySeconds;
+
+    @Getter
     private volatile boolean cancelled;
 
     public TimeWheelTask(String taskId, Runnable task, int delaySeconds) {
@@ -29,22 +39,6 @@ public class TimeWheelTask implements Comparable<TimeWheelTask> {
 
     public void cancel() {
         cancelled = true;
-    }
-
-    public boolean isCancelled() {
-        return cancelled;
-    }
-
-    public String getTaskId() {
-        return taskId;
-    }
-
-    public long getExecuteTimeMs() {
-        return executeTimeMs;
-    }
-
-    public int getDelaySeconds() {
-        return delaySeconds;
     }
 
     @Override

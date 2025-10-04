@@ -1,5 +1,7 @@
 package cn.augrain.easy.tool.algorithm.timewheel;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -13,6 +15,7 @@ import java.util.function.Predicate;
  * @author biaoy
  * @since 2025/10/01
  */
+@Slf4j
 public class EnhancedAdaptiveTimeWheel extends AdaptiveTimeWheel {
     private final ScheduledExecutorService repeatingTaskMonitor;
     private final ConcurrentHashMap<String, RepeatingTimeWheelTask> repeatingTasks;
@@ -59,8 +62,7 @@ public class EnhancedAdaptiveTimeWheel extends AdaptiveTimeWheel {
                 taskId, task, intervalSeconds, maxExecutions, stopCondition);
 
         repeatingTasks.put(taskId, repeatingTask);
-        scheduleRepeatingTaskExecution(repeatingTask);
-
+        scheduleNextExecution(repeatingTask);
         return taskId;
     }
 
@@ -69,7 +71,7 @@ public class EnhancedAdaptiveTimeWheel extends AdaptiveTimeWheel {
             try {
                 manageRepeatingTasks();
             } catch (Exception e) {
-                System.err.println("Error in repeating task monitor: " + e.getMessage());
+                log.error("Error in repeating task monitor ", e);
             }
         }, 1, 1, TimeUnit.SECONDS);
     }
@@ -79,27 +81,6 @@ public class EnhancedAdaptiveTimeWheel extends AdaptiveTimeWheel {
             RepeatingTimeWheelTask task = entry.getValue();
             return task.isCompleted() || task.isCancelled();
         });
-    }
-
-    private void scheduleRepeatingTaskExecution(RepeatingTimeWheelTask task) {
-        if (!task.isRepeating()) {
-            return;
-        }
-
-        int delaySeconds = task.getIntervalSeconds();
-
-        try {
-            super.addTask(() -> {
-                if (task.isRepeating()) {
-                    task.execute();
-                    // Task execution completed, immediately schedule next execution
-                    scheduleNextExecution(task);
-                }
-            }, delaySeconds);
-        } catch (Exception e) {
-            System.err.println("Error scheduling repeating task " + task.getTaskId() + ": " + e.getMessage());
-            task.stop();
-        }
     }
 
     private void scheduleNextExecution(RepeatingTimeWheelTask task) {
@@ -116,7 +97,7 @@ public class EnhancedAdaptiveTimeWheel extends AdaptiveTimeWheel {
                 }
             }, delaySeconds);
         } catch (Exception e) {
-            System.err.println("Error scheduling next execution for task " + task.getTaskId() + ": " + e.getMessage());
+            log.error("Error scheduling repeating task " + task.getTaskId() + ": ", e);
             task.stop();
         }
     }
@@ -157,7 +138,6 @@ public class EnhancedAdaptiveTimeWheel extends AdaptiveTimeWheel {
         repeatingTasks.clear();
 
         super.shutdown();
-
         try {
             if (!repeatingTaskMonitor.awaitTermination(5, TimeUnit.SECONDS)) {
                 repeatingTaskMonitor.shutdownNow();
