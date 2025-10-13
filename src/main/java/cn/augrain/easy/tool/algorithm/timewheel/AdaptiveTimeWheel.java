@@ -190,10 +190,8 @@ public class AdaptiveTimeWheel {
 
     private TimeWheel createHigherLevelWheel(TimeWheel current) {
         int newLevel = current.getLevel() + 1;
-        int newSlotSize = BASE_SLOT_SIZE;
         int newTickMs = current.getTickMs() * current.getSlotSize();
-
-        return new TimeWheel(newSlotSize, newTickMs, newLevel);
+        return new TimeWheel(BASE_SLOT_SIZE, newTickMs, newLevel);
     }
 
     public String addTask(Runnable task, int delaySeconds) {
@@ -220,6 +218,13 @@ public class AdaptiveTimeWheel {
                 taskExecutor.submit(() -> {
                     try {
                         executeTask.execute();
+
+                        // 判断是否需要移除任务
+                        if (executeTask instanceof RepeatingTimeWheelTask) {
+                            if (executeTask.isCancelled() || ((RepeatingTimeWheelTask) executeTask).isCompleted()) {
+                                repeatingTasks.remove(executeTask.getTaskId());
+                            }
+                        }
                     } catch (Exception e) {
                         log.error("Error executing task {} , error msg is {}", executeTask.getTaskId(), e.getMessage());
                     }
