@@ -58,6 +58,22 @@ public class AdaptiveTimeWheel {
         startTicker();
     }
 
+    public String addTask(Runnable task, int delaySeconds) {
+        if (!running.get()) {
+            throw new IllegalStateException("AdaptiveTimeWheel is shutdown");
+        }
+
+        if (delaySeconds <= 0) {
+            throw new IllegalArgumentException("Delay must be positive");
+        }
+
+        String taskId = "task-" + taskCounter.incrementAndGet();
+        TimeWheelTask timeWheelTask = new TimeWheelTask(taskId, task, delaySeconds);
+
+        placeTaskInAppropriateWheel(timeWheelTask);
+        return taskId;
+    }
+
     public String addRepeatingTask(Runnable task, int intervalSeconds) {
         return addRepeatingTask(task, intervalSeconds, -1, null);
     }
@@ -108,6 +124,49 @@ public class AdaptiveTimeWheel {
         placeTaskInAppropriateWheel(task);
     }
 
+    /**
+     * 将任务添加到合适的轮子上
+     *
+     * @param task 待调度的任务
+     */
+    private void placeTaskInAppropriateWheel(TimeWheelTask task) {
+        wheelLock.readLock().lock();
+        ensureCapacity(task.getDelaySeconds());
+        try {
+            TimeWheel current = baseWheel;
+            while (current != null) {
+                if (current.canHandleDelay(task.getDelaySeconds())) {
+                    current.addTask(task);
+                    return;
+                }
+                current = current.getParent();
+            }
+        } finally {
+            wheelLock.readLock().unlock();
+        }
+    }
+
+    private void ensureCapacity(int taskDelay ) {
+        TimeWheel current = topLevelWheel;
+        while (!current.canHandleDelay(taskDelay)) {
+            if (current.getLevel() >= MAX_LEVELS - 1) {
+                throw new IllegalArgumentException("Task delay too large: " + taskDelay + " seconds");
+            }
+
+            TimeWheel newWheel = createHigherLevelWheel(current);
+            current.setParent(newWheel);
+            newWheel.setChild(current);
+            topLevelWheel = newWheel;
+            current = newWheel;
+        }
+    }
+
+    private TimeWheel createHigherLevelWheel(TimeWheel current) {
+        int newLevel = current.getLevel() + 1;
+        int newTickMs = current.getTickMs() * current.getSlotSize();
+        return new TimeWheel(BASE_SLOT_SIZE, newTickMs, newLevel);
+    }
+
     private void startTicker() {
         scheduler.scheduleAtFixedRate(() -> {
             if (!running.get()) {
@@ -139,75 +198,6 @@ public class AdaptiveTimeWheel {
             ConcurrentLinkedQueue<TimeWheelTask> tasks = wheel.getTasksFromCurrentSlot();
             executeTasks(tasks);
         }
-    }
-
-    /**
-     * 将任务添加到合适的轮子上
-     *
-     * @param task 待调度的任务
-     */
-    private void placeTaskInAppropriateWheel(TimeWheelTask task) {
-        wheelLock.readLock().lock();
-        try {
-            TimeWheel current = baseWheel;
-            while (current != null) {
-                if (current.canHandleDelay(task.getDelaySeconds())) {
-                    current.addTask(task);
-                    return;
-                }
-                current = current.getParent();
-            }
-        } finally {
-            wheelLock.readLock().unlock();
-        }
-
-        ensureCapacityForTask(task);
-    }
-
-    private void ensureCapacityForTask(TimeWheelTask task) {
-        wheelLock.writeLock().lock();
-        try {
-            TimeWheel current = topLevelWheel;
-            int taskDelay = task.getDelaySeconds();
-
-            while (!current.canHandleDelay(taskDelay)) {
-                if (current.getLevel() >= MAX_LEVELS - 1) {
-                    throw new IllegalArgumentException("Task delay too large: " + taskDelay + " seconds");
-                }
-
-                TimeWheel newWheel = createHigherLevelWheel(current);
-                current.setParent(newWheel);
-                newWheel.setChild(current);
-                topLevelWheel = newWheel;
-                current = newWheel;
-            }
-
-            placeTaskInAppropriateWheel(task);
-        } finally {
-            wheelLock.writeLock().unlock();
-        }
-    }
-
-    private TimeWheel createHigherLevelWheel(TimeWheel current) {
-        int newLevel = current.getLevel() + 1;
-        int newTickMs = current.getTickMs() * current.getSlotSize();
-        return new TimeWheel(BASE_SLOT_SIZE, newTickMs, newLevel);
-    }
-
-    public String addTask(Runnable task, int delaySeconds) {
-        if (!running.get()) {
-            throw new IllegalStateException("AdaptiveTimeWheel is shutdown");
-        }
-
-        if (delaySeconds <= 0) {
-            throw new IllegalArgumentException("Delay must be positive");
-        }
-
-        String taskId = "task-" + taskCounter.incrementAndGet();
-        TimeWheelTask timeWheelTask = new TimeWheelTask(taskId, task, delaySeconds);
-
-        placeTaskInAppropriateWheel(timeWheelTask);
-        return taskId;
     }
 
     private void executeTasks(ConcurrentLinkedQueue<TimeWheelTask> tasks) {
