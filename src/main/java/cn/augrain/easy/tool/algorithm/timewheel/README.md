@@ -45,11 +45,7 @@
 - 自适应时间轮管理器
 - 动态创建和管理时间轮层级
 - 读写锁保证线程安全
-
-### EnhancedAdaptiveTimeWheel
-- 增强版自适应时间轮，内置重复任务支持 ⭐
-- 自动监控和管理重复任务执行
-- 提供丰富的重复任务API
+- 内置重复任务支持
 
 ### RepeatingTimeWheelTask
 - 重复任务实现，继承自TimeWheelTask

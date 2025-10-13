@@ -6,6 +6,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Predicate;
 
 /**
  * 自适应时间轮管理器
@@ -29,6 +30,7 @@ public class AdaptiveTimeWheel {
     private final ExecutorService taskExecutor;
     private final AtomicBoolean running;
     private final AtomicLong taskCounter;
+    private final ConcurrentHashMap<String, RepeatingTimeWheelTask> repeatingTasks;
 
     public AdaptiveTimeWheel() {
         this.wheelLock = new ReentrantReadWriteLock();
@@ -51,8 +53,59 @@ public class AdaptiveTimeWheel {
 
         this.running = new AtomicBoolean(true);
         this.taskCounter = new AtomicLong(0);
+        this.repeatingTasks = new ConcurrentHashMap<>();
 
         startTicker();
+    }
+
+    public String addRepeatingTask(Runnable task, int intervalSeconds) {
+        return addRepeatingTask(task, intervalSeconds, -1, null);
+    }
+
+    public String addRepeatingTask(Runnable task, int intervalSeconds, int maxExecutions) {
+        return addRepeatingTask(task, intervalSeconds, maxExecutions, null);
+    }
+
+    public String addRepeatingTask(Runnable task, int intervalSeconds,
+                                   Predicate<RepeatingTimeWheelTask> stopCondition) {
+        return addRepeatingTask(task, intervalSeconds, -1, stopCondition);
+    }
+
+    public String addRepeatingTask(Runnable task, int intervalSeconds, int maxExecutions,
+                                   Predicate<RepeatingTimeWheelTask> stopCondition) {
+        if (!isRunning()) {
+            throw new IllegalStateException("EnhancedAdaptiveTimeWheel is shutdown");
+        }
+
+        if (intervalSeconds <= 0) {
+            throw new IllegalArgumentException("Interval must be positive");
+        }
+
+        String taskId = "repeating-" + taskCounter.incrementAndGet();
+        RepeatingTimeWheelTask repeatingTask = new RepeatingTimeWheelTask(
+                taskId, task, intervalSeconds, maxExecutions, stopCondition);
+
+        repeatingTasks.put(taskId, repeatingTask);
+        scheduleNextExecution(repeatingTask);
+        return taskId;
+    }
+
+    private void scheduleNextExecution(RepeatingTimeWheelTask task) {
+        if (!task.isRepeating()) {
+            return;
+        }
+
+        try {
+            addTask(task);
+        } catch (Exception e) {
+            log.error("Error scheduling repeating task " + task.getTaskId() + ": ", e);
+            task.stop();
+            repeatingTasks.remove(task.getTaskId());
+        }
+    }
+
+    private void addTask(RepeatingTimeWheelTask task) {
+        placeTaskInAppropriateWheel(task);
     }
 
     private void startTicker() {
@@ -171,6 +224,9 @@ public class AdaptiveTimeWheel {
                         log.error("Error executing task {} , error msg is {}", executeTask.getTaskId(), e.getMessage());
                     }
                 });
+                if (task instanceof RepeatingTimeWheelTask) {
+                    scheduleNextExecution((RepeatingTimeWheelTask) task);
+                }
             }
         }
     }

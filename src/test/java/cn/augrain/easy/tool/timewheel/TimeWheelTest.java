@@ -1,7 +1,6 @@
 package cn.augrain.easy.tool.timewheel;
 
 import cn.augrain.easy.tool.algorithm.timewheel.AdaptiveTimeWheel;
-import cn.augrain.easy.tool.algorithm.timewheel.EnhancedAdaptiveTimeWheel;
 import cn.augrain.easy.tool.algorithm.timewheel.TaskStopConditions;
 import cn.augrain.easy.tool.time.LocalDateTimeUtils;
 import org.junit.Test;
@@ -37,10 +36,9 @@ public class TimeWheelTest {
         Thread.currentThread().join();
     }
 
-
     @Test
     public void testBasicRepeatingTask() throws Exception {
-        EnhancedAdaptiveTimeWheel timeWheel = new EnhancedAdaptiveTimeWheel();
+        AdaptiveTimeWheel timeWheel = new AdaptiveTimeWheel();
         AtomicInteger counter = new AtomicInteger(0);
 
         System.out.printf("添加定时任务，每2秒执行一次，当前时间: %s \n", LocalDateTimeUtils.nowStr());
@@ -54,7 +52,7 @@ public class TimeWheelTest {
 
     @Test
     public void testRepeatingSpecificTimesTask() throws Exception {
-        EnhancedAdaptiveTimeWheel timeWheel = new EnhancedAdaptiveTimeWheel();
+        AdaptiveTimeWheel timeWheel = new AdaptiveTimeWheel();
         AtomicInteger counter = new AtomicInteger(0);
 
         System.out.printf("添加定时任务，每1秒执行一次，共执行10次，当前时间: %s \n", LocalDateTimeUtils.nowStr());
@@ -68,7 +66,7 @@ public class TimeWheelTest {
 
     @Test
     public void testConditionalStopTask() throws Exception {
-        EnhancedAdaptiveTimeWheel timeWheel = new EnhancedAdaptiveTimeWheel();
+        AdaptiveTimeWheel timeWheel = new AdaptiveTimeWheel();
         AtomicInteger timeCounter = new AtomicInteger(0);
         AtomicInteger countCounter = new AtomicInteger(0);
 
