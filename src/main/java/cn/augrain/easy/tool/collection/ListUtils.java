@@ -32,4 +32,16 @@ public class ListUtils {
         }
     }
 
+    /**
+     * 列表分批
+     */
+    public static <T> List<List<T>> partition(List<T> list, int batchSize) {
+        List<List<T>> batches = new ArrayList<>();
+        for (int i = 0; i < list.size(); i += batchSize) {
+            int end = Math.min(list.size(), i + batchSize);
+            batches.add(list.subList(i, end));
+        }
+        return batches;
+    }
+
 }
