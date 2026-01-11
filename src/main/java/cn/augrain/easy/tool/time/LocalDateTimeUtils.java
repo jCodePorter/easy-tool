@@ -138,4 +138,11 @@ public class LocalDateTimeUtils {
             return start1.isBefore(end2) && end1.isAfter(start2);
         }
     }
+
+    /**
+     * 获取日期所在天的零点时间
+     */
+    public static LocalDateTime atStartOfDay(LocalDateTime time) {
+        return time.toLocalDate().atStartOfDay();
+    }
 }
