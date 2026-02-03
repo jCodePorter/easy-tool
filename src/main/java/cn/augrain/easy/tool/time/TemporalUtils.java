@@ -77,4 +77,40 @@ public class TemporalUtils {
                 .min(Comparator.naturalOrder())
                 .orElse(null);
     }
+
+    /**
+     * 是否在区间内
+     *
+     * @param date  指定日期、时间、日期时间
+     * @param start 开始边界
+     * @param end   结束边界
+     */
+    public static <T extends Temporal & Comparable<? super T>> boolean isBetween(T date, T start, T end) {
+        return start.compareTo(date) <= 0 && end.compareTo(date) >= 0;
+    }
+
+    /**
+     * 是否在区间内
+     *
+     * @param date           指定日期、时间、日期时间
+     * @param start          开始边界
+     * @param end            结束边界
+     * @param startInclusive 是否包含开始边界
+     * @param endInclusive   是否包含结束边界
+     */
+    public static <T extends Temporal & Comparable<? super T>> boolean isBetween(T date, T start, T end,
+                                                                                 boolean startInclusive, boolean endInclusive) {
+        boolean afterStart = true;
+        boolean beforeEnd = true;
+
+        if (start != null) {
+            afterStart = startInclusive ? start.compareTo(date) <= 0 : start.compareTo(date) < 0;
+        }
+
+        if (end != null) {
+            beforeEnd = endInclusive ? end.compareTo(date) >= 0 : end.compareTo(date) > 0;
+        }
+
+        return afterStart && beforeEnd;
+    }
 }
