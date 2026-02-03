@@ -34,9 +34,9 @@ public class LocalDateTimeUtils {
     }
 
     /**
-     * 时间转时间戳(毫秒）
+     * 时间转毫秒时间戳
      *
-     * @param localDateTime 时间
+     * @param localDateTime 日期时间
      * @return 时间戳
      */
     public static long toEpochMilli(LocalDateTime localDateTime) {
@@ -46,7 +46,16 @@ public class LocalDateTimeUtils {
     }
 
     /**
-     * 时间戳转时间
+     * 毫秒时间戳转日期时间
+     *
+     * @param timestamp 毫秒时间戳
+     */
+    public static LocalDateTime fromEpochMilli(long timestamp) {
+        return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
+    }
+
+    /**
+     * 秒级时间戳转时间
      *
      * @param timestamp 时间戳
      * @return 时间
@@ -56,7 +65,7 @@ public class LocalDateTimeUtils {
     }
 
     /**
-     * 时间转时间戳（秒）
+     * 时间转秒级时间戳
      *
      * @param localDateTime 时间
      * @return 时间戳

@@ -16,7 +16,6 @@ public class TemporalUtils {
 
     /**
      * 比较两个 Temporal 对象并返回最大值
-     * 支持 LocalDate, LocalDateTime
      */
     public static <T extends Temporal & Comparable<? super T>> T max(T date1, T date2) {
         if (date1 == null && date2 == null) return null;
@@ -27,7 +26,6 @@ public class TemporalUtils {
 
     /**
      * 比较两个 Temporal 对象并返回最小值
-     * 支持 LocalDate, LocalDateTime
      */
     public static <T extends Temporal & Comparable<? super T>> T min(T date1, T date2) {
         if (date1 == null && date2 == null) return null;
