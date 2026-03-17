@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * {@link BigDecimal}工具类，
@@ -327,6 +328,22 @@ public class NumberUtils {
      */
     public static boolean equals(BigDecimal v1, BigDecimal v2) {
         return v1 == v2 || (v1 != null && v2 != null && v1.compareTo(v2) == 0);
+    }
+
+    /**
+     * 格式化BigDecimal
+     */
+    public String format(BigDecimal value) {
+        return format(value, "0");
+    }
+
+    public String format(BigDecimal value, String defaultStr) {
+        return Optional.ofNullable(value)
+                .map(v -> {
+                    DecimalFormat df = new DecimalFormat("#0.00");
+                    return df.format(v);
+                })
+                .orElse(defaultStr);
     }
 
 }
