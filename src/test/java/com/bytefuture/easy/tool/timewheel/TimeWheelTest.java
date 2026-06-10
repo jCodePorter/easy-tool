@@ -5,6 +5,7 @@ import com.bytefuture.easy.tool.algorithm.timewheel.TaskStopConditions;
 import com.bytefuture.easy.tool.time.LocalDateTimeUtils;
 import org.junit.Test;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.bytefuture.easy.tool.algorithm.timewheel.TaskStopConditions.any;
@@ -14,9 +15,10 @@ public class TimeWheelTest {
     @Test
     public void test() throws Exception {
         AdaptiveTimeWheel timeWheel = new AdaptiveTimeWheel();
+        System.out.printf("[%s] add task%n", LocalDateTimeUtils.nowStr());
         timeWheel.addTask(() -> {
-            System.out.println(String.format("[%s] execute #%d", LocalDateTimeUtils.nowStr(), 120));
-        }, 60);
+            System.out.printf("[%s] execute #%d%n", LocalDateTimeUtils.nowStr(), 120);
+        }, 10);
 
         Thread.currentThread().join();
     }
@@ -41,11 +43,11 @@ public class TimeWheelTest {
         AdaptiveTimeWheel timeWheel = new AdaptiveTimeWheel();
         AtomicInteger counter = new AtomicInteger(0);
 
-        System.out.printf("添加定时任务，每2秒执行一次，当前时间: %s \n", LocalDateTimeUtils.nowStr());
+        System.out.printf("添加定时任务，每2秒执行一次，当前时间: %s \n", LocalDateTimeUtils.nowMsStr());
         timeWheel.addRepeatingTask(() -> {
             int count = counter.incrementAndGet();
-            System.out.println(String.format("[%s] execute #%d", LocalDateTimeUtils.nowStr(), count));
-        }, 1);
+            System.out.println(String.format("[%s] execute #%d", LocalDateTimeUtils.nowMsStr(), count));
+        }, 2);
 
         Thread.currentThread().join();
     }
@@ -58,7 +60,7 @@ public class TimeWheelTest {
         System.out.printf("添加定时任务，每1秒执行一次，共执行10次，当前时间: %s \n", LocalDateTimeUtils.nowStr());
         timeWheel.addRepeatingTask(() -> {
             int count = counter.incrementAndGet();
-            System.out.println(String.format("[%s] execute #%d", LocalDateTimeUtils.nowStr(), count));
+            System.out.println(String.format("[%s] execute #%d", LocalDateTimeUtils.nowMsStr(), count));
         }, 1, 10);
 
         Thread.currentThread().join();

@@ -14,6 +14,7 @@ import java.util.Date;
 public class LocalDateTimeUtils {
 
     public static final String NORM_DATETIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
+    public static final String NORM_DATETIME_MS_PATTERN = "yyyy-MM-dd HH:mm:ss.SSS";
     public static final String PURE_DATETIME_MS_PATTERN = "yyyyMMddHHmmssSSS";
 
     private LocalDateTimeUtils() {
@@ -22,6 +23,10 @@ public class LocalDateTimeUtils {
 
     public static String nowStr() {
         return format(LocalDateTime.now(), NORM_DATETIME_PATTERN);
+    }
+
+    public static String nowMsStr() {
+        return format(LocalDateTime.now(), NORM_DATETIME_MS_PATTERN);
     }
 
     /**
