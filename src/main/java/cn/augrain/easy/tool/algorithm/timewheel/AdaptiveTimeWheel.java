@@ -70,7 +70,10 @@ public class AdaptiveTimeWheel {
         String taskId = "task-" + taskCounter.incrementAndGet();
         TimeWheelTask timeWheelTask = new TimeWheelTask(taskId, task, delaySeconds);
 
-        placeTaskInAppropriateWheel(timeWheelTask);
+        // 1. 确保容量足够（需要时在写锁下扩容）
+        ensureSufficientCapacity(delaySeconds);
+        // 2. 在读锁下将任务放入合适的轮子
+        placeTaskInWheel(timeWheelTask);
         return taskId;
     }
 
@@ -90,7 +93,7 @@ public class AdaptiveTimeWheel {
     public String addRepeatingTask(Runnable task, int intervalSeconds, int maxExecutions,
                                    Predicate<RepeatingTimeWheelTask> stopCondition) {
         if (!isRunning()) {
-            throw new IllegalStateException("EnhancedAdaptiveTimeWheel is shutdown");
+            throw new IllegalStateException("AdaptiveTimeWheel is shutdown");
         }
 
         if (intervalSeconds <= 0) {
@@ -102,6 +105,8 @@ public class AdaptiveTimeWheel {
                 taskId, task, intervalSeconds, maxExecutions, stopCondition);
 
         repeatingTasks.put(taskId, repeatingTask);
+        // 确保容量足够容纳该间隔
+        ensureSufficientCapacity(intervalSeconds);
         scheduleNextExecution(repeatingTask);
         return taskId;
     }
@@ -112,6 +117,8 @@ public class AdaptiveTimeWheel {
         }
 
         try {
+            // 刷新执行时间戳，避免级联时计算剩余延迟用到过期时间
+            task.refreshExecuteTime(task.getIntervalSeconds());
             addTask(task);
         } catch (Exception e) {
             log.error("Error scheduling repeating task " + task.getTaskId() + ": ", e);
@@ -120,18 +127,47 @@ public class AdaptiveTimeWheel {
         }
     }
 
+    /**
+     * 重新调度重复任务（仅放入轮子，不检查容量——容量在首次添加时已确保）
+     */
     private void addTask(RepeatingTimeWheelTask task) {
-        placeTaskInAppropriateWheel(task);
+        placeTaskInWheel(task);
     }
 
     /**
-     * 将任务添加到合适的轮子上
-     *
-     * @param task 待调度的任务
+     * 确保容量足够容纳指定延迟的任务。
+     * 先无锁快速检查，容量不足时在写锁下扩容（双重检查）。
      */
-    private void placeTaskInAppropriateWheel(TimeWheelTask task) {
+    private void ensureSufficientCapacity(int taskDelay) {
+        // 快速检查：无锁读取 volatile topLevelWheel（纯优化，避免写锁竞争）
+        if (topLevelWheel.canHandleDelay(taskDelay)) {
+            return;
+        }
+
+        // 容量不足，在写锁下扩容
+        wheelLock.writeLock().lock();
+        try {
+            // 双重检查：可能已被其他线程扩容
+            while (!topLevelWheel.canHandleDelay(taskDelay)) {
+                if (topLevelWheel.getLevel() >= MAX_LEVELS - 1) {
+                    throw new IllegalArgumentException(
+                            "Task delay too large: " + taskDelay + " seconds");
+                }
+                TimeWheel newWheel = createHigherLevelWheel(topLevelWheel);
+                topLevelWheel.setParent(newWheel);
+                newWheel.setChild(topLevelWheel);
+                topLevelWheel = newWheel;
+            }
+        } finally {
+            wheelLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * 在读锁下将任务放入合适的时间轮层级。
+     */
+    private void placeTaskInWheel(TimeWheelTask task) {
         wheelLock.readLock().lock();
-        ensureCapacity(task.getDelaySeconds());
         try {
             TimeWheel current = baseWheel;
             while (current != null) {
@@ -143,21 +179,6 @@ public class AdaptiveTimeWheel {
             }
         } finally {
             wheelLock.readLock().unlock();
-        }
-    }
-
-    private void ensureCapacity(int taskDelay ) {
-        TimeWheel current = topLevelWheel;
-        while (!current.canHandleDelay(taskDelay)) {
-            if (current.getLevel() >= MAX_LEVELS - 1) {
-                throw new IllegalArgumentException("Task delay too large: " + taskDelay + " seconds");
-            }
-
-            TimeWheel newWheel = createHigherLevelWheel(current);
-            current.setParent(newWheel);
-            newWheel.setChild(current);
-            topLevelWheel = newWheel;
-            current = newWheel;
         }
     }
 
@@ -209,19 +230,19 @@ public class AdaptiveTimeWheel {
                     try {
                         executeTask.execute();
 
-                        // 判断是否需要移除任务
+                        // 在 execute() 之后判断：已完成/取消则移除，否则调度下一次执行
                         if (executeTask instanceof RepeatingTimeWheelTask) {
-                            if (executeTask.isCancelled() || ((RepeatingTimeWheelTask) executeTask).isCompleted()) {
+                            RepeatingTimeWheelTask repeatingTask = (RepeatingTimeWheelTask) executeTask;
+                            if (executeTask.isCancelled() || repeatingTask.isCompleted()) {
                                 repeatingTasks.remove(executeTask.getTaskId());
+                            } else {
+                                scheduleNextExecution(repeatingTask);
                             }
                         }
                     } catch (Exception e) {
                         log.error("Error executing task {} , error msg is {}", executeTask.getTaskId(), e.getMessage());
                     }
                 });
-                if (task instanceof RepeatingTimeWheelTask) {
-                    scheduleNextExecution((RepeatingTimeWheelTask) task);
-                }
             }
         }
     }

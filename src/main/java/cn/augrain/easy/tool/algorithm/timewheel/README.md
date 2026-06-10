@@ -61,11 +61,11 @@
 
 ### 时间轮层级结构
 ```
-Level 0 (秒轮): 60 slots × 1000ms = 最大延迟60秒
-Level 1 (分轮): 60 slots × 60000ms = 最大延迟3600秒
-Level 2 (时轮): 60 slots × 3600000ms = 最大延迟216000秒
-Level 3 (天轮): 60 slots × 216000000ms = 最大延迟12960000秒
-... (无限扩展)
+Level 0 (基础轮): 10 slots × 1000ms = 最大延迟10秒
+Level 1:          10 slots × 10000ms = 最大延迟100秒
+Level 2:          10 slots × 100000ms = 最大延迟1000秒
+Level 3:          10 slots × 1000000ms = 最大延迟10000秒
+... (按需扩展，最多 10 层)
 ```
 
 ### 动态扩容机制
@@ -78,8 +78,8 @@ Level 3 (天轮): 60 slots × 216000000ms = 最大延迟12960000秒
 
 ### 基本使用
 ```java
-// 创建增强版时间轮 (推荐使用)
-EnhancedAdaptiveTimeWheel timeWheel = new EnhancedAdaptiveTimeWheel();
+// 创建自适应时间轮
+AdaptiveTimeWheel timeWheel = new AdaptiveTimeWheel();
 
 // 添加一次性任务 - 系统自动选择合适的时间轮层级
 String taskId1 = timeWheel.addTask(() -> {
@@ -132,41 +132,26 @@ String complexTask = timeWheel.addRepeatingTask(() -> {
 // 获取当前层级数
 int levels = timeWheel.getWheelLevels();
 
-// 获取层级结构
-String hierarchy = timeWheel.getWheelHierarchy();
-
 // 获取待处理任务数
 int pendingTasks = timeWheel.getTotalPendingTasks();
 
 // 获取运行状态
 boolean running = timeWheel.isRunning();
 
-// 重复任务监控
-int repeatingTaskCount = timeWheel.getRepeatingTaskCount();
-int activeRepeatingCount = timeWheel.getActiveRepeatingTaskCount();
-int completedRepeatingCount = timeWheel.getCompletedRepeatingTaskCount();
-
-// 获取重复任务详细信息
-RepeatingTimeWheelTask task = timeWheel.getRepeatingTask(taskId);
-System.out.println("任务详情: " + task);
-System.out.println("执行次数: " + task.getExecutionCount());
-System.out.println("平均执行时间: " + task.getAverageExecutionTimeMs() + "ms");
-System.out.println("距离下次执行: " + task.getTimeToNextExecutionMs() + "ms");
-
-// 打印所有重复任务状态
-timeWheel.printDetailedRepeatingTaskStatus();
+// 打印时间轮整体状态
+System.out.println(timeWheel.toString());
 ```
 
 ## 性能指标
 
 ### 时间精度
 - **基础精度**: 1秒
-- **高层级精度**: 按层级递增 (Level N: 60^N 秒)
-- **重复任务精度**: 修复后确保按指定间隔精确执行
+- **高层级精度**: 按层级递增 (Level N: 10^N × 10 秒)
+- **重复任务精度**: 按指定间隔精确执行
 
 ### 容量支持
-- **理论最大延迟**: 无限制 (受限于整数范围)
-- **实际最大延迟**: 60^10 秒 (约 3.8 × 10^17 年)
+- **理论最大延迟**: 受限于整数范围和最大层级数
+- **实际最大延迟**: 10^10 秒 (约 317 年)
 - **最大层级数**: 10 (可配置)
 - **重复任务数**: 理论上无限制
 
@@ -179,43 +164,39 @@ timeWheel.printDetailedRepeatingTaskStatus();
 
 ### 层级选择算法
 ```java
-int calculateRequiredLevel(int delaySeconds) {
-    int level = 0;
-    int currentMaxDelay = 60;
-
-    while (delaySeconds >= currentMaxDelay && level < MAX_LEVELS) {
-        level++;
-        currentMaxDelay *= 60;
-    }
-
-    return level;
-}
+// canHandleDelay 判断当前轮是否能容纳指定延迟
+// maxDelay = slotSize * tickMs / 1000
+// 基础轮: 10 * 1000 / 1000 = 10s
+// Level 1: 10 * 10000 / 1000 = 100s, 以此类推
 ```
 
 ### 动态扩容算法
 ```java
-void ensureCapacityForTask(TimeWheelTask task) {
-    DynamicTimeWheel current = topLevelWheel;
-
-    while (!current.canHandleDelay(task.getDelaySeconds())) {
-        DynamicTimeWheel newWheel = createHigherLevelWheel(current);
-        current.setParent(newWheel);
-        newWheel.setChild(current);
-        topLevelWheel = newWheel;
-        current = newWheel;
+void ensureSufficientCapacity(int taskDelay) {
+    // 快速检查（无锁）
+    if (topLevelWheel.canHandleDelay(taskDelay)) return;
+    // 写锁下双重检查 + 扩容
+    wheelLock.writeLock().lock();
+    try {
+        while (!topLevelWheel.canHandleDelay(taskDelay)) {
+            TimeWheel newWheel = createHigherLevelWheel(topLevelWheel);
+            topLevelWheel.setParent(newWheel);
+            newWheel.setChild(topLevelWheel);
+            topLevelWheel = newWheel;
+        }
+    } finally {
+        wheelLock.writeLock().unlock();
     }
 }
 ```
 
 ### 任务级联算法
 ```java
-void cascadeTasks(DynamicTimeWheel wheel) {
-    DynamicTimeWheel parent = wheel.getParent();
-    if (parent != null) {
-        ConcurrentLinkedQueue<TimeWheelTask> parentTasks =
-            parent.getTasksFromCurrentSlot();
-        redistributeTasks(parentTasks);
-    }
+// 基础轮归零时触发父轮推进 + 级联
+// advance() 中:
+if (nextSlot == 0 && parent != null) {
+    parent.advance();
+    cascadeTasksFromParent();  // 将父轮当前槽位任务降级到当前轮
 }
 ```
 

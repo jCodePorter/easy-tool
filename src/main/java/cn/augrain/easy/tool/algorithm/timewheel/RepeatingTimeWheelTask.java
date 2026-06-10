@@ -128,7 +128,7 @@ public class RepeatingTimeWheelTask extends TimeWheelTask {
     @Override
     public String toString() {
         return String.format("RepeatingTimeWheelTask{id='%s', interval=%ds, executions=%d/%d, " +
-                        "avgTime=%.2fms, nextIn=%ds, repeating=%s, completed=%s}",
+                        "avgTime=%.2fms, totalExecTime=%dms, repeating=%s, completed=%s}",
                 getTaskId(), intervalSeconds, executionCount.get(),
                 maxExecutions > 0 ? maxExecutions : Integer.MAX_VALUE,
                 getAverageExecutionTimeMs(),

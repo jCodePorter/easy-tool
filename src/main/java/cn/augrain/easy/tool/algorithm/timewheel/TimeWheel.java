@@ -87,10 +87,6 @@ public class TimeWheel {
     }
 
     public ConcurrentLinkedQueue<TimeWheelTask> getTasksFromCurrentSlot() {
-        if (!running) {
-            return new ConcurrentLinkedQueue<>();
-        }
-
         int slot = currentSlot.get();
         ConcurrentLinkedQueue<TimeWheelTask> tasks = slots[slot];
         ConcurrentLinkedQueue<TimeWheelTask> result = new ConcurrentLinkedQueue<>();
@@ -140,7 +136,7 @@ public class TimeWheel {
 
     public boolean canHandleDelay(int delaySeconds) {
         int maxDelay = slotSize * tickMs / 1000;
-        return delaySeconds < maxDelay;
+        return delaySeconds <= maxDelay;
     }
 
     public int getPendingTaskCount() {

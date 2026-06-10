@@ -15,7 +15,7 @@ public class TimeWheelTask implements Comparable<TimeWheelTask> {
     private final String taskId;
 
     @Getter
-    private final long executeTimeMs;
+    private long executeTimeMs;
 
     @Getter
     private final int delaySeconds;
@@ -39,6 +39,13 @@ public class TimeWheelTask implements Comparable<TimeWheelTask> {
 
     public void cancel() {
         cancelled = true;
+    }
+
+    /**
+     * 刷新执行时间，用于重复任务重新调度时更新 executeTimeMs。
+     */
+    void refreshExecuteTime(int newDelaySeconds) {
+        this.executeTimeMs = System.currentTimeMillis() + newDelaySeconds * 1000L;
     }
 
     @Override
